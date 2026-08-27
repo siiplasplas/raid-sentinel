@@ -139,25 +139,37 @@ devresi kurulmadı.
 
 ---
 
-## Panelin bilinen zayıflıkları
+## Panel — tamamlananlar
 
-Öncelik sırasıyla, en değerli üstte:
+Listedeki yedi eksikten altısı kapatıldı:
 
-1. **Susturma/üstlenme yok.** Raid sırasında "ben ilgileniyorum, aramayı
-   kes" diyemiyorsun. Eskalasyonda bölge bekleme süresi var ama elle
-   onaylama yok. *Bu en çok eksikliği hissedilecek şey.*
-2. **Olay arşivi yok.** Geçmiş raidleri oturum olarak göremiyorsun.
-   `raid_ended` olayları var ama tekrar/inceleme ekranı yok.
-3. **Analitik yok.** Sensör başına yanlış alarm oranı, zamana göre raid
-   dağılımı, sana karşı harcanan sülfür. Sensör yerleşimini iyileştirmek
-   için gerekli.
-4. **Kimlik doğrulama yok.** Panelden Twilio token'ı ve webhook
-   değiştirilebiliyor. Yalnızca `127.0.0.1` dinliyor ve README uyarıyor,
-   ama dışarı açılırsa para harcatan bir yüzey.
-5. **Olay listesi düz.** Filtre, arama, sayfalama yok. Raid sırasında
-   okunmaz hale gelir.
-6. **Üs editörü görsel değil.** Bağlantı listesi var, topoloji çizimi yok.
-7. **Ayarlarda kaydedilmemiş değişiklik uyarısı yok.**
+- ✅ **Üstlenme** — raid kartında "Üstlendim · 30 dk / 2 saat". Telefon
+  zinciri o bölge için susturulur; `escalation.acknowledge()`. Bölge
+  bekleme süresinden ayrı ve onun yerine geçmez.
+- ✅ **Olay arşivi** — `Arşiv` sekmesi. `/api/history` geçmiş
+  `raid_started → raid_ended` çiftlerini oturuma dönüştürüyor; kapanmamış
+  olanlar "sürüyor" işaretli.
+- ✅ **Analitik** — aynı sekmede. Bölge başına saldırı/ciddi/yanlış alarm,
+  cihaz başına tetikleme, aylık harcama. *Yanlış alarm = kritiğe hiç
+  ulaşmamış oturum.*
+- ✅ **Kimlik doğrulama** — `PANEL_TOKEN` ayarı. Doluysa `/api/*` uçları
+  `X-Panel-Token` istiyor; panel anahtarı localStorage'da tutuyor ve 401
+  alınca soruyor. Sayfanın kendisi korunmuyor (içinde veri yok).
+- ✅ **Olay filtresi** — şiddet seçici + metin araması + `görünen/toplam`
+  sayacı. Panel tarafında, sunucuya ek yük yok.
+- ✅ **Üs haritası** — SVG topoloji. Yerleşim koordinat gerektirmiyor:
+  sütunlar hedefe olan adım sayısından türetiliyor. Saldırı altındaki
+  bölge ve TC'ye giden yol canlı vurgulanıyor.
+
+**Kalan tek madde:** Ayarlarda kaydedilmemiş değişiklik uyarısı yok.
+
+Yeni zayıflık adayları (henüz sorun değil, büyüyünce olur):
+
+- Arşiv 30 günle sınırlı ve sayfalama yok
+- Analitik "yanlış alarm" tanımı kaba — kritiğe ulaşmayan her oturum
+  sayılıyor, oysa bazıları gerçek ama küçük olaylar olabilir
+- Olay tablosu büyüdükçe `raid_stats` sorgusu yavaşlar (indeks var ama
+  tam tarama yapıyor)
 
 ---
 
@@ -167,14 +179,14 @@ devresi kurulmadı.
 
 1. `sentinel test-call` — Türkçe seslendirme çalışıyor mu
 2. Sismik sensör + termometre devresi kurulup patlayıcı kademesi test
-   edilmeli. Şu an sistem gerçek bir patlama hiç görmedi.
+   edilmeli. Şu an sistem gerçek bir patlama hiç görmedi; kullanıcının
+   HBHF'si yalnızca insan algılıyor.
 
-**Sonra kod** (değer sırasıyla):
+**Sonra kod:**
 
-1. **Susturma düğmesi** — panelde "üstlendim", N dakika telefon kesilir
-2. **Olay arşivi** — geçmiş raid oturumları, kaydırmalı inceleme
-3. **Analitik** — sensör başına yanlış alarm oranı
-4. **Panel kimlik doğrulama** — basit token yeter
+1. Ayarlarda kaydedilmemiş değişiklik uyarısı
+2. Arşivde sayfalama / tarih aralığı seçimi
+3. Wipe tespiti — eşleştirme geçersizleşince panelde büyük uyarı
 
 ---
 

@@ -279,6 +279,59 @@ class Store:
             rows = await asyncio.to_thread(self._delete_entity, entity_id)
         return rows > 0
 
+    # --- gecmis ve analitik ------------------------------------------------
+
+    def _raid_stats(self, since: float) -> list[dict[str, Any]]:
+        """Bolge basina raid ozeti.
+
+        "Yanlis alarm" = kritik seviyeye hic ulasmamis oturum. Sensor
+        yerlesimini iyilestirmek icin bakilacak sayi bu.
+        """
+        rows = self.conn.execute(
+            """SELECT zone,
+                      COUNT(*) AS sessions,
+                      SUM(CASE WHEN severity >= ? THEN 1 ELSE 0 END) AS serious,
+                      MAX(ts) AS last_ts
+               FROM events
+               WHERE kind = 'raid_started' AND ts >= ? AND zone IS NOT NULL
+               GROUP BY zone
+               ORDER BY sessions DESC""",
+            (int(Severity.CRITICAL), since),
+        ).fetchall()
+        return [
+            {
+                "zone": r["zone"],
+                "sessions": r["sessions"],
+                "serious": r["serious"] or 0,
+                "false_alarms": r["sessions"] - (r["serious"] or 0),
+                "last_ts": r["last_ts"],
+            }
+            for r in rows
+        ]
+
+    async def raid_stats(self, *, since: float = 0.0) -> list[dict[str, Any]]:
+        async with self._lock:
+            return await asyncio.to_thread(self._raid_stats, since)
+
+    def _device_stats(self, since: float) -> list[dict[str, Any]]:
+        rows = self.conn.execute(
+            """SELECT entity_name, COUNT(*) AS triggers, MAX(ts) AS last_ts
+               FROM events
+               WHERE kind IN ('alarm_triggered', 'entity_changed')
+                 AND ts >= ? AND entity_name IS NOT NULL AND entity_name != ''
+               GROUP BY entity_name
+               ORDER BY triggers DESC""",
+            (since,),
+        ).fetchall()
+        return [
+            {"name": r["entity_name"], "triggers": r["triggers"], "last_ts": r["last_ts"]}
+            for r in rows
+        ]
+
+    async def device_stats(self, *, since: float = 0.0) -> list[dict[str, Any]]:
+        async with self._lock:
+            return await asyncio.to_thread(self._device_stats, since)
+
     # --- kucuk durum anahtarlari ------------------------------------------
 
     def _kv_set(self, key: str, value: str) -> None:

@@ -18,15 +18,16 @@ import asyncio
 import contextlib
 import json
 import logging
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from fastapi import Body, FastAPI, Query
+from fastapi import Body, FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 from sentinel.base_model import BaseGraph, BaseModelError, base_path
 from sentinel.escalation import Contact
-from sentinel.models import Event, SensorKind, Severity
+from sentinel.models import Event, EventKind, SensorKind, Severity
 from sentinel.notify import sample_raid_event
 from sentinel.raiddata import DEPLOYABLE_COST, WALL_COST, Tier, WeaponClass
 from sentinel.settings_store import SettingsError, describe
@@ -84,6 +85,25 @@ def _serialize(event: Event) -> dict[str, Any]:
 
 def create_app(sentinel: Sentinel) -> FastAPI:
     app = FastAPI(title="Raid Sentinel", version="0.1.0", docs_url="/api/docs")
+
+    @app.middleware("http")
+    async def guard(request: Request, call_next):
+        """Panel anahtari tanimliysa /api/* uclarini korur.
+
+        Sayfanin kendisi korunmuyor - icinde veri yok, sadece kabuk.
+        Veri ve ayar uclari korunuyor; panel anahtari basligi gonderiyor.
+        """
+        token = sentinel.settings.panel_token
+        if token and request.url.path.startswith("/api/"):
+            given = (
+                request.headers.get("X-Panel-Token")
+                or request.query_params.get("token")
+            )
+            if given != token:
+                return JSONResponse(
+                    status_code=401, content={"error": "Panel anahtari gerekli"}
+                )
+        return await call_next(request)
 
     # --- panel -------------------------------------------------------------
 
@@ -160,7 +180,13 @@ def create_app(sentinel: Sentinel) -> FastAPI:
 
     @app.get("/api/raids")
     async def raids() -> dict[str, Any]:
-        return {"raids": sentinel.raid_snapshot()}
+        rows = sentinel.raid_snapshot()
+        if sentinel.escalation is not None:
+            for row in rows:
+                row["suppressed_until"] = sentinel.escalation.suppressed_until(
+                    row["zone"]
+                )
+        return {"raids": rows}
 
     @app.get("/api/events")
     async def events(
@@ -325,7 +351,111 @@ def create_app(sentinel: Sentinel) -> FastAPI:
             ),
         }
 
+    # --- gecmis ve analitik ------------------------------------------------
+
+    @app.get("/api/history")
+    async def history(
+        limit: int = Query(default=50, ge=1, le=500),
+        days: int = Query(default=30, ge=1, le=365),
+    ) -> dict[str, Any]:
+        """Gecmis raid oturumlari.
+
+        Oturum, ayni bolgedeki raid_started -> raid_ended ciftinden
+        kuruluyor; kapanmamis olanlar suruyor olarak isaretleniyor.
+        """
+        since = time.time() - days * 86400
+        rows = await sentinel.store.recent_events(
+            limit=limit * 6,
+            since=since,
+            kinds=[EventKind.RAID_STARTED, EventKind.RAID_ENDED],
+        )
+
+        open_by_zone: dict[str, dict[str, Any]] = {}
+        sessions: list[dict[str, Any]] = []
+
+        # Olaylar yeniden eskiye geliyor; oturumu eskiden yeniye kuruyoruz.
+        for event in reversed(rows):
+            zone = event.zone or "?"
+            if event.kind is EventKind.RAID_STARTED:
+                open_by_zone[zone] = {
+                    "zone": zone,
+                    "started_at": event.ts,
+                    "ended_at": None,
+                    "threat": event.raw.get("threat"),
+                    "threat_score": event.raw.get("threat_score"),
+                    "severity": event.severity.name.lower(),
+                    "summary": event.raw.get("summary") or event.body,
+                    "reasons": event.raw.get("threat_reasons") or [],
+                }
+            else:
+                session = open_by_zone.pop(zone, None)
+                if session is None:
+                    continue
+                session["ended_at"] = event.ts
+                session["duration"] = round(event.ts - session["started_at"], 1)
+                session["summary"] = event.raw.get("summary") or session["summary"]
+                session["triggers"] = event.raw.get("trigger_count")
+                session["estimated_sulfur"] = event.raw.get("estimated_sulfur")
+                sessions.append(session)
+
+        sessions.extend(open_by_zone.values())
+        sessions.sort(key=lambda s: s["started_at"], reverse=True)
+        return {"count": len(sessions[:limit]), "sessions": sessions[:limit]}
+
+    @app.get("/api/analytics")
+    async def analytics(days: int = Query(default=30, ge=1, le=365)) -> dict[str, Any]:
+        since = time.time() - days * 86400
+        zones = await sentinel.store.raid_stats(since=since)
+        devices = await sentinel.store.device_stats(since=since)
+
+        total = sum(z["sessions"] for z in zones)
+        false_alarms = sum(z["false_alarms"] for z in zones)
+        return {
+            "days": days,
+            "total_sessions": total,
+            "false_alarms": false_alarms,
+            "false_alarm_rate": round(false_alarms / total, 3) if total else 0.0,
+            "zones": zones,
+            "devices": devices,
+            "spend": await sentinel.spend.summary() if sentinel.spend else None,
+        }
+
     # --- eylemler ----------------------------------------------------------
+
+    @app.post("/api/actions/acknowledge")
+    async def acknowledge(body: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+        """Ben ilgileniyorum - telefon zincirini elle susturur."""
+        if sentinel.escalation is None:
+            return {"ok": False, "error": "Telefon zinciri kurulu degil"}
+
+        zone = str(body.get("zone") or "").strip() or None
+        try:
+            minutes = float(body.get("minutes", 30))
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "Sure sayi olmali"}
+        minutes = max(1.0, min(minutes, 720.0))
+
+        until = sentinel.escalation.acknowledge(zone, minutes)
+        await sentinel.publish_event(
+            Event(
+                kind=EventKind.RAID_ACKNOWLEDGED,
+                severity=Severity.WARN,
+                title=f"{zone or 'Tum bolgeler'}: ustlenildi",
+                body=f"Telefon zinciri {minutes:.0f} dakika susturuldu.",
+                zone=zone,
+            )
+        )
+        return {"ok": True, "zone": zone, "minutes": minutes, "until": until}
+
+    @app.post("/api/actions/unacknowledge")
+    async def unacknowledge(body: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+        if sentinel.escalation is None:
+            return {"ok": False, "error": "Telefon zinciri kurulu degil"}
+        sentinel.escalation.clear_acknowledgement(
+            str(body.get("zone") or "").strip() or None
+        )
+        return {"ok": True}
+
 
     @app.post("/api/actions/test-notify")
     async def action_test_notify() -> dict[str, Any]:

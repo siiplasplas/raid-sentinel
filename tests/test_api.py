@@ -319,3 +319,100 @@ def test_base_options_come_from_the_cost_tables(client):
     deployables = {d["value"]: d["cost_c4"] for d in body["deployables"]}
     assert deployables["garage_door"] == 2
     assert all(d["label"] for d in body["deployables"]), "Her secenegin etiketi olmali"
+
+
+# --- ustlenme, arsiv, analitik, kimlik dogrulama ---------------------------
+
+
+def test_acknowledge_silences_the_call_chain(sentinel, client):
+    """Raid sirasinda 'geliyorum, beni arama' diyebilmek gerekiyor."""
+    response = client.post("/api/actions/acknowledge",
+                           json={"zone": "Garaj", "minutes": 30})
+
+    assert response.json()["ok"] is True
+    assert sentinel.escalation.suppressed_until("Garaj") > 0
+    assert sentinel.escalation.suppressed_until("Airlock") == 0
+
+
+def test_acknowledge_without_zone_silences_everything(sentinel, client):
+    client.post("/api/actions/acknowledge", json={"minutes": 10})
+
+    assert sentinel.escalation.suppressed_until("herhangi-bir-bolge") > 0
+
+
+def test_acknowledgement_can_be_lifted(sentinel, client):
+    client.post("/api/actions/acknowledge", json={"zone": "Garaj", "minutes": 30})
+    client.post("/api/actions/unacknowledge", json={"zone": "Garaj"})
+
+    assert sentinel.escalation.suppressed_until("Garaj") == 0
+
+
+def test_acknowledge_duration_is_clamped(client):
+    body = client.post("/api/actions/acknowledge",
+                       json={"zone": "Garaj", "minutes": 99999}).json()
+    assert body["minutes"] == 720
+
+
+async def test_history_pairs_start_and_end_into_sessions(sentinel, client):
+    await sentinel._publish(Event(kind=EventKind.RAID_STARTED, severity=Severity.CRITICAL,
+                                  title="basladi", zone="Garaj",
+                                  raw={"threat": "HIGH", "threat_score": 70}))
+    await sentinel._publish(Event(kind=EventKind.RAID_ENDED, severity=Severity.INFO,
+                                  title="durdu", zone="Garaj",
+                                  raw={"trigger_count": 4, "summary": "4 tetikleme"}))
+
+    sessions = client.get("/api/history").json()["sessions"]
+
+    assert len(sessions) == 1
+    assert sessions[0]["zone"] == "Garaj"
+    assert sessions[0]["threat"] == "HIGH"
+    assert sessions[0]["triggers"] == 4
+    assert sessions[0]["duration"] is not None
+
+
+async def test_history_marks_unfinished_sessions(sentinel, client):
+    await sentinel._publish(Event(kind=EventKind.RAID_STARTED, severity=Severity.CRITICAL,
+                                  title="basladi", zone="Garaj"))
+
+    session = client.get("/api/history").json()["sessions"][0]
+    assert session["ended_at"] is None
+
+
+async def test_analytics_counts_false_alarms(sentinel, client):
+    """Kritige ulasmayan oturum yanlis alarm sayilir - sensor yerlesimini
+    iyilestirmek icin bakilacak sayi bu."""
+    await sentinel._publish(Event(kind=EventKind.RAID_STARTED, severity=Severity.CRITICAL,
+                                  title="gercek", zone="Garaj"))
+    await sentinel._publish(Event(kind=EventKind.RAID_STARTED, severity=Severity.DEBUG,
+                                  title="sahte", zone="Cati"))
+
+    body = client.get("/api/analytics").json()
+
+    assert body["total_sessions"] == 2
+    assert body["false_alarms"] == 1
+    assert body["false_alarm_rate"] == 0.5
+
+
+def test_api_is_open_when_no_panel_token_is_set(client):
+    assert client.get("/api/state").status_code == 200
+
+
+def test_panel_token_protects_the_api(sentinel, tmp_path):
+    """Panelden Twilio token'i degistirilebiliyor - disariya acilirsa
+    kimlik dogrulamasi sart."""
+    from sentinel.config import Settings
+
+    guarded = Sentinel(Settings(db_path=tmp_path / "g.db", panel_token="gizli"))
+    guarded.store.connect()
+    guarded._build_escalation()
+    try:
+        api_client = TestClient(create_app(guarded))
+
+        assert api_client.get("/api/state").status_code == 401
+        assert api_client.get("/", follow_redirects=True).status_code == 200, (
+            "Sayfanin kendisi veri icermiyor, korunmasi gerekmiyor"
+        )
+        ok = api_client.get("/api/state", headers={"X-Panel-Token": "gizli"})
+        assert ok.status_code == 200
+    finally:
+        guarded.store.close()

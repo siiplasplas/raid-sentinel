@@ -50,6 +50,7 @@ class EventKind(StrEnum):
     RAID_STARTED = "raid_started"
     RAID_PROGRESS = "raid_progress"
     RAID_ENDED = "raid_ended"
+    RAID_ACKNOWLEDGED = "raid_acknowledged"
 
     # Rust+ kaynakli
     ALARM_TRIGGERED = "alarm_triggered"

@@ -44,6 +44,7 @@ _KIND_MARKS = {
     EventKind.RAID_STARTED: "🔴",
     EventKind.RAID_PROGRESS: "🟠",
     EventKind.RAID_ENDED: "🟢",
+    EventKind.RAID_ACKNOWLEDGED: "🙋",
     EventKind.ESCALATION_STARTED: "📞",
     EventKind.ESCALATION_ACKNOWLEDGED: "✅",
     EventKind.ESCALATION_EXHAUSTED: "❗",

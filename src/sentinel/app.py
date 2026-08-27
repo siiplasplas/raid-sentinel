@@ -167,6 +167,10 @@ class Sentinel:
             event.server_id = self._server_id()
         await self.bus.publish(event)
 
+    async def publish_event(self, event: Event) -> None:
+        """Disaridan (panel eylemleri) olay yayinlamak icin."""
+        await self._publish(event)
+
     async def _store_event(self, event: Event) -> None:
         await self.store.add_event(event)
 

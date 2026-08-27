@@ -72,6 +72,11 @@ class Settings(BaseSettings):
     # "23:00-08:00" - bos birakilirsa kapali
     quiet_hours: str = ""
 
+    # Panel kimlik dogrulama. Bos = kapali (yalnizca 127.0.0.1 dinlerken
+    # kabul edilebilir). Panelden Twilio token'i degistirilebildigi icin
+    # disariya acacaksan bunu mutlaka doldur.
+    panel_token: str = ""
+
     # --- Sistem ------------------------------------------------------------
     db_path: Path = Path("data/sentinel.db")
     log_level: str = "INFO"

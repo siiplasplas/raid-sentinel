@@ -132,6 +132,37 @@ class EscalationEngine:
 
         self._last_escalation: dict[str, float] = {}
         self._active: set[str] = set()
+        # Bolge -> susturmanin bitecegi an. "Ben ilgileniyorum, aramayi kes."
+        self._suppressed: dict[str, float] = {}
+
+    def acknowledge(self, zone: str | None, minutes: float) -> float:
+        """Telefon zincirini elle susturur ve bitis anini doner.
+
+        Raid sirasinda "geliyorum, beni arama" diyebilmek gerekiyor;
+        bolge bekleme suresi otomatik ama elle onay onun yerine gecmez.
+        `zone` None ise butun bolgeler susturulur.
+        """
+        until = time.time() + max(0.0, minutes) * 60
+        if zone is None:
+            for key in list(self._last_escalation) + list(self._active):
+                self._suppressed[key] = until
+            self._suppressed["*"] = until
+        else:
+            self._suppressed[zone] = until
+        log.info("Telefon zinciri susturuldu (%s) %.0f dk", zone or "tum bolgeler", minutes)
+        return until
+
+    def suppressed_until(self, zone: str) -> float:
+        """Bu bolge icin susturma ne zaman bitiyor (gecmisse 0)."""
+        now = time.time()
+        best = max(self._suppressed.get(zone, 0.0), self._suppressed.get("*", 0.0))
+        return best if best > now else 0.0
+
+    def clear_acknowledgement(self, zone: str | None = None) -> None:
+        if zone is None:
+            self._suppressed.clear()
+        else:
+            self._suppressed.pop(zone, None)
 
     @property
     def enabled(self) -> bool:
@@ -158,6 +189,13 @@ class EscalationEngine:
             self._active.discard(zone)
 
     async def _precheck(self, zone: str) -> bool:
+        until = self.suppressed_until(zone)
+        if until:
+            log.info(
+                "Bolge susturulmus (%s), %.0f dk kaldi", zone, (until - time.time()) / 60
+            )
+            return False
+
         last = self._last_escalation.get(zone, 0.0)
         elapsed = time.time() - last
         if last and elapsed < self._cooldown:

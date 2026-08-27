@@ -86,6 +86,10 @@ SETTINGS_SPEC: tuple[FieldSpec, ...] = (
     FieldSpec("healthcheck_interval", "Saglik kontrolu araligi (sn)", "Limitler", "int",
               "Rust+ baglantisinin gercekten yasadigini dogrulama sikligi"),
 
+    FieldSpec("panel_token", "Panel erisim anahtari", "Baglanti", "secret",
+              "Bos = kimlik dogrulama kapali. Paneli disariya acacaksan doldur - "
+              "buradan Twilio token'i degistirilebiliyor."),
+
     # --- Baglanti ---
     FieldSpec("rust_use_proxy", "Facepunch vekili uzerinden baglan", "Baglanti", "bool",
               "Normalde oyun sunucusuna dogrudan baglaniriz. Sunucunun app portu "

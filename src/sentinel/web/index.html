@@ -169,6 +169,19 @@ button.tiny.danger:hover{color:var(--oxide);border-color:var(--oxide)}
 .ob{display:grid;grid-template-columns:1fr 5rem auto;gap:.45rem;align-items:center}
 .ob-empty{font-size:.8rem;color:var(--ink-3)}
 
+/* --- filtre cubugu --- */
+.filters{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.7rem;align-items:center}
+.filters select,.filters input{width:auto;flex:0 0 auto}
+.filters input.search{flex:1 1 12rem;min-width:8rem}
+.filters .count{font-family:var(--mono);font-size:.62rem;color:var(--ink-3);
+  margin-left:auto;white-space:nowrap}
+
+/* --- raid eylemleri --- */
+.raid-actions{display:flex;gap:.4rem;flex-wrap:wrap;padding:.6rem 1rem;
+  border-top:1px solid var(--line);background:var(--panel-2)}
+.hushed{font-family:var(--mono);font-size:.64rem;color:var(--sulfur);
+  align-self:center;margin-left:.3rem}
+
 /* --- us haritasi --- */
 .map{background:var(--panel);border:1px solid var(--line);border-radius:3px;
   padding:.8rem;margin-bottom:1rem;overflow-x:auto}
@@ -242,13 +255,26 @@ figcaption{font-size:.8rem;color:var(--ink-3);margin-top:.5rem}
     <button role="tab" aria-selected="true"  data-tab="events">Olaylar</button>
     <button role="tab" aria-selected="false" data-tab="devices">Cihazlar</button>
     <button role="tab" aria-selected="false" data-tab="base">Üs</button>
+    <button role="tab" aria-selected="false" data-tab="history">Arşiv</button>
     <button role="tab" aria-selected="false" data-tab="team">Takım</button>
     <button role="tab" aria-selected="false" data-tab="settings">Ayarlar</button>
     <button role="tab" aria-selected="false" data-tab="setup">Kurulum<span id="setup-badge" class="badge" hidden></span></button>
     <button role="tab" aria-selected="false" data-tab="system">Sistem</button>
   </nav>
 
-  <section id="tab-events"><div id="events" class="rows"></div></section>
+  <section id="tab-events">
+    <div class="filters">
+      <select id="ev-sev">
+        <option value="debug">Tümü</option>
+        <option value="info">Bilgi ve üstü</option>
+        <option value="warn" selected>Uyarı ve üstü</option>
+        <option value="critical">Yalnızca kritik</option>
+      </select>
+      <input class="search" id="ev-search" placeholder="Ara: bölge, cihaz, metin...">
+      <span class="count" id="ev-count"></span>
+    </div>
+    <div id="events" class="rows"></div>
+  </section>
 
   <section id="tab-devices" hidden>
     <div id="devices-msg" class="msg" hidden></div>
@@ -258,6 +284,12 @@ figcaption{font-size:.8rem;color:var(--ink-3);margin-top:.5rem}
   <section id="tab-base" hidden>
     <div id="base-msg" class="msg" hidden></div>
     <div id="base-editor"></div>
+  </section>
+
+  <section id="tab-history" hidden>
+    <div id="analytics"></div>
+    <div class="label">Geçmiş saldırılar</div>
+    <div id="history" class="rows"></div>
   </section>
 
   <section id="tab-team" hidden>
@@ -312,6 +344,7 @@ const MAX_EVENTS = 200;
 let state = null, events = [], soundOn = false;
 let baseModel = null, baseOptions = null, setupInfo = null;
 let everConnected = false;
+let panelToken = localStorage.getItem("sentinel-token") || "";
 
 // --- yardimcilar ---------------------------------------------------------
 
@@ -342,7 +375,19 @@ function msg(id, kind, text) {
 }
 
 async function api(path, options) {
-  const res = await fetch(path, options);
+  const opts = { ...(options || {}) };
+  if (panelToken) {
+    opts.headers = { ...(opts.headers || {}), "X-Panel-Token": panelToken };
+  }
+  const res = await fetch(path, opts);
+  if (res.status === 401) {
+    const given = prompt("Panel erişim anahtarı:", "");
+    if (given) {
+      panelToken = given;
+      localStorage.setItem("sentinel-token", given);
+      return api(path, options);
+    }
+  }
   let data = {};
   try { data = await res.json(); } catch (err) { /* govdesiz yanit */ }
   return { ok: res.ok, status: res.status, data };
@@ -383,6 +428,8 @@ function renderRaids() {
   box.innerHTML = raids.map((r) => {
     const threat = (r.threat || "NONE").toLowerCase();
     const eta = r.eta;
+    const left = (r.suppressed_until || 0) - Date.now() / 1000;
+    const hushed = left > 0 ? `susturuldu · ${Math.ceil(left / 60)} dk` : "";
     const etaBlock = eta
       ? `<div class="eta" data-due="${eta.due_at}">${mmss(eta.due_at - Date.now() / 1000)}</div>
          <div class="sub">${mmss(eta.low_seconds)}–${mmss(eta.high_seconds)} · güven: ${esc(eta.confidence)}
@@ -408,8 +455,33 @@ function renderRaids() {
         <div class="cell"><div class="label">Tool cupboard'a</div>${etaBlock}
           <div class="reasons">${esc((r.threat_reasons || []).join("; "))}</div></div>
         <div class="cell"><div class="label">Kalan yol</div>${ladder}</div>
+      </div>
+      <div class="raid-actions">
+        <button class="tiny ack" data-zone="${esc(r.zone)}" data-min="30">Üstlendim · 30 dk</button>
+        <button class="tiny ack" data-zone="${esc(r.zone)}" data-min="120">2 saat</button>
+        ${hushed ? `<button class="tiny unack" data-zone="${esc(r.zone)}">Susturmayı kaldır</button>
+          <span class="hushed">${hushed}</span>` : ""}
       </div></article>`;
   }).join("");
+
+  wireRaidActions();
+}
+
+function wireRaidActions() {
+  document.querySelectorAll(".raid-actions .ack").forEach((btn) => {
+    btn.onclick = async () => {
+      const { data } = await api("/api/actions/acknowledge", jsonBody("POST", {
+        zone: btn.dataset.zone, minutes: Number(btn.dataset.min),
+      }));
+      if (data && data.ok) { renderRaids(); }
+    };
+  });
+  document.querySelectorAll(".raid-actions .unack").forEach((btn) => {
+    btn.onclick = async () => {
+      await api("/api/actions/unacknowledge", jsonBody("POST", { zone: btn.dataset.zone }));
+      renderRaids();
+    };
+  });
 }
 
 setInterval(() => {
@@ -420,10 +492,30 @@ setInterval(() => {
 
 // --- olaylar -------------------------------------------------------------
 
+const SEV_RANK = { debug: 10, info: 20, warn: 30, critical: 40 };
+
+function visibleEvents() {
+  const min = SEV_RANK[$("ev-sev").value] || 10;
+  const needle = $("ev-search").value.trim().toLocaleLowerCase("tr");
+  return events.filter((e) => {
+    if ((SEV_RANK[e.severity] || 0) < min) return false;
+    if (!needle) return true;
+    const hay = `${e.title} ${e.body} ${e.zone || ""} ${e.entity_name || ""} ${e.kind}`;
+    return hay.toLocaleLowerCase("tr").includes(needle);
+  });
+}
+
 function renderEvents() {
   const box = $("events");
-  if (!events.length) { box.innerHTML = `<div class="empty">Henüz olay yok</div>`; return; }
-  box.innerHTML = events.map((e) => `
+  const shown = visibleEvents();
+  $("ev-count").textContent = `${shown.length} / ${events.length}`;
+
+  if (!shown.length) {
+    box.innerHTML = `<div class="empty">${events.length
+      ? "Filtreye uyan olay yok" : "Henüz olay yok"}</div>`;
+    return;
+  }
+  box.innerHTML = shown.map((e) => `
     <div class="row ${esc(e.severity)}">
       <span class="sev ${esc(e.severity)}"></span>
       <span class="txt"><div class="t">${esc(e.title)}</div>
@@ -858,6 +950,64 @@ async function saveBase() {
   loadSetup();
 }
 
+// --- arsiv ve analitik ---------------------------------------------------
+
+function fmtDate(ts) {
+  return new Date(ts * 1000).toLocaleString("tr-TR",
+    { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtDur(sec) {
+  if (sec == null) return "sürüyor";
+  const m = Math.floor(sec / 60);
+  return m >= 1 ? `${m} dk` : `${Math.round(sec)} sn`;
+}
+
+async function loadHistory() {
+  const stats = await api("/api/analytics?days=30");
+  const box = $("analytics");
+  if (stats.ok && stats.data.total_sessions !== undefined) {
+    const a = stats.data;
+    const pct = Math.round((a.false_alarm_rate || 0) * 100);
+    box.innerHTML = `<div class="stats">
+      <div class="stat"><div class="v">${a.total_sessions}</div><div class="k">30 günde saldırı</div></div>
+      <div class="stat"><div class="v ${pct > 50 ? "bad" : ""}">${pct}%</div><div class="k">yanlış alarm oranı</div></div>
+      <div class="stat"><div class="v">${a.false_alarms}</div><div class="k">ciddi olmayan</div></div>
+      <div class="stat"><div class="v">${a.spend ? "$" + a.spend.spent_usd : "-"}</div><div class="k">bu ay arama</div></div>
+    </div>` + (a.zones.length ? `<div class="label" style="margin-top:1rem">Bölge başına</div>
+      <div class="rows">${a.zones.map((z) => `
+        <div class="row"><span class="sev ${z.false_alarms > z.serious ? "warn" : "info"}"></span>
+          <span class="txt"><div class="t">${esc(z.zone)}</div>
+          <div class="b">${z.sessions} saldırı · ${z.serious} ciddi · ${z.false_alarms} yanlış alarm</div></span>
+          <span class="when">${z.last_ts ? ago(z.last_ts) : "-"}</span></div>`).join("")}</div>` : "")
+      + (a.devices.length ? `<div class="label" style="margin-top:1rem">Cihaz başına tetikleme</div>
+      <div class="rows">${a.devices.map((d) => `
+        <div class="row"><span class="sev debug"></span>
+          <span class="txt"><div class="t">${esc(d.name)}</div>
+          <div class="b">${d.triggers} tetikleme</div></span>
+          <span class="when">${d.last_ts ? ago(d.last_ts) : "-"}</span></div>`).join("")}</div>` : "");
+  } else {
+    box.innerHTML = "";
+  }
+
+  const hist = await api("/api/history?limit=50&days=30");
+  const list = $("history");
+  const sessions = (hist.data && hist.data.sessions) || [];
+  if (!sessions.length) {
+    list.innerHTML = `<div class="empty">Henüz kayıtlı saldırı yok</div>`;
+    return;
+  }
+  list.innerHTML = sessions.map((s) => `
+    <div class="row">
+      <span class="sev ${esc(s.severity || "info")}"></span>
+      <span class="txt">
+        <div class="t">${esc(s.zone)} · ${esc(s.threat || "-")}${s.threat_score != null ? " (" + s.threat_score + ")" : ""}</div>
+        <div class="b">${esc(s.summary || "")}${s.reasons && s.reasons.length ? "\n" + esc(s.reasons.join("; ")) : ""}</div>
+      </span>
+      <span class="when">${fmtDate(s.started_at)}<br>${fmtDur(s.duration)}</span>
+    </div>`).join("");
+}
+
 // --- takim ---------------------------------------------------------------
 
 let teamModel = null;
@@ -1149,8 +1299,8 @@ function renderSystem() {
 
 // --- sekmeler ------------------------------------------------------------
 
-const TABS = ["events", "devices", "base", "team", "settings", "setup", "system"];
-const ON_OPEN = { devices: loadDevices, base: loadBase, team: loadTeam,
+const TABS = ["events", "devices", "base", "history", "team", "settings", "setup", "system"];
+const ON_OPEN = { devices: loadDevices, base: loadBase, history: loadHistory, team: loadTeam,
                   settings: loadSettings, setup: loadSetup };
 
 document.querySelectorAll("nav.tabs button").forEach((btn) => {
@@ -1162,6 +1312,9 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     if (loader) loader();
   };
 });
+
+$("ev-sev").onchange = renderEvents;
+$("ev-search").oninput = renderEvents;
 
 $("team-save").onclick = saveTeam;
 $("team-reload").onclick = loadTeam;
