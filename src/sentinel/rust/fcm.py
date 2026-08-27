@@ -30,6 +30,7 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+import httpx
 from push_receiver.push_receiver import PushReceiver
 
 from sentinel.rust.notifications import RustNotification, parse
@@ -38,13 +39,27 @@ log = logging.getLogger(__name__)
 
 NotificationHandler = Callable[[RustNotification], Awaitable[None]]
 
-_MONITOR_INTERVAL = 60.0
+_MONITOR_INTERVAL = 30.0
 _RESTART_BACKOFF = (5.0, 15.0, 60.0, 180.0)
 
-# Kutuphanenin kendi esigi 1 saat. Onun sifirlamasina sans tanimak icin
-# bizim esigimiz belirgin sekilde daha yuksek.
-_SILENCE_SOFT_LIMIT = 90 * 60.0
-_SILENCE_HARD_LIMIT = 150 * 60.0
+# --- Canlilik probu --------------------------------------------------------
+#
+# Sahada iki kez sunu gorduk: soket "bagli" gorunuyor, thread yasiyor, ama
+# hicbir mesaj gelmiyor. Google baglantiyi sessizce dusuruyor ve alttaki
+# kutuphanenin okumasi zaman asimsiz oldugu icin sonsuza kadar blokta
+# kaliyor. Pasif sessizlik olcumu bunu yakalayamiyor, cunku bu baglantida
+# heartbeat de yok (heartbeat_config.interval_ms = 0).
+#
+# Cozum: duzenli olarak KENDIMIZE push atip geldigini dogruluyoruz.
+# Beklemek yerine kanit uretiyoruz. Expo push'lari ucretsiz, maliyeti yok.
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
+_PROBE_INTERVAL = 240.0
+_PROBE_GRACE = 75.0
+_PROBE_TITLE = "sentinel-probe"
+
+# Prob calisirken en fazla bu kadar sessizlik olabilir; asilirsa baglanti
+# olmus demektir (prob araligi + tolerans).
+_SILENCE_LIMIT = _PROBE_INTERVAL + _PROBE_GRACE
 
 
 class FcmSupervisor:
@@ -54,6 +69,7 @@ class FcmSupervisor:
         handler: NotificationHandler,
         *,
         loop: asyncio.AbstractEventLoop | None = None,
+        expo_push_token: str = "",
     ) -> None:
         if not fcm_credentials:
             raise ValueError("FCM kimlik bilgileri bos - once 'sentinel pair' calistir")
@@ -61,6 +77,9 @@ class FcmSupervisor:
         self._credentials = fcm_credentials
         self._handler = handler
         self._loop = loop
+        self._expo_token = expo_push_token
+        self._probe_sent_at: float = 0.0
+        self.probe_failures: int = 0
 
         self._receiver: PushReceiver | None = None
         self._thread: threading.Thread | None = None
@@ -80,6 +99,9 @@ class FcmSupervisor:
         self._stopping.clear()
         self._spawn()
         self._monitor_task = asyncio.create_task(self._monitor(), name="fcm-monitor")
+        # Acilista hemen dogrula: baglanti ilk andan itibaren kanitli olsun.
+        await asyncio.sleep(3)
+        await self._send_probe()
         log.info("FCM dinleyicisi baslatildi")
 
     async def stop(self) -> None:
@@ -117,6 +139,13 @@ class FcmSupervisor:
     def _on_notification(self, _obj: Any, notification: dict[str, Any], _data: Any) -> None:
         """FCM thread'inde calisir - asyncio dunyasina koprule."""
         self.last_notification_at = time.time()
+
+        # Canlilik probu bir olay degil - sayilmasin, islenmesin.
+        if notification.get("title") == _PROBE_TITLE:
+            log.debug("Canlilik probu geri dondu")
+            self._probe_sent_at = 0.0
+            return
+
         self.notification_count += 1
 
         try:
@@ -177,7 +206,60 @@ class FcmSupervisor:
                 continue
 
             self._restart_count = 0
+            await self._check_probe()
             await self._check_silence()
+
+    # --- canlilik probu ----------------------------------------------------
+
+    async def _check_probe(self) -> None:
+        """Kendimize push atip geldigini dogrular.
+
+        Bekleyen bir prob varsa ve zamaninda donmediyse baglanti oludur -
+        dinleyiciyi bastan kurariz.
+        """
+        if not self._expo_token:
+            return
+
+        now = time.time()
+
+        if self._probe_sent_at:
+            if now - self._probe_sent_at < _PROBE_GRACE:
+                return  # hala bekliyoruz
+            self.probe_failures += 1
+            log.error(
+                "Canlilik probu %.0f sn icinde donmedi - baglanti olu, "
+                "dinleyici yeniden kuruluyor (%d. kez)",
+                _PROBE_GRACE,
+                self.probe_failures,
+            )
+            self._probe_sent_at = 0.0
+            self._close_socket()
+            self._spawn()
+            return
+
+        if now - self.last_notification_at < _PROBE_INTERVAL:
+            return  # zaten trafik var, proba gerek yok
+
+        await self._send_probe()
+
+    async def _send_probe(self) -> None:
+        payload = {
+            "to": self._expo_token,
+            "title": _PROBE_TITLE,
+            "body": "canlilik",
+            "priority": "high",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                response = await client.post(EXPO_PUSH_URL, json=payload)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            # Internet yoksa prob gonderilemez; baglantiyi olu saymayalim.
+            log.warning("Canlilik probu gonderilemedi: %s", exc)
+            return
+
+        self._probe_sent_at = time.time()
+        log.debug("Canlilik probu gonderildi")
 
     async def _restart_dead_thread(self) -> None:
         delay = _RESTART_BACKOFF[min(self._restart_count, len(_RESTART_BACKOFF) - 1)]
@@ -192,25 +274,17 @@ class FcmSupervisor:
             self._spawn()
 
     async def _check_silence(self) -> None:
+        """Prob calisirken bile bu kadar sessizlik varsa baglanti olmustur."""
         silence = self._silence_seconds()
-        if silence < _SILENCE_SOFT_LIMIT:
+        if silence < _SILENCE_LIMIT:
             self._soft_resets = 0
             return
 
-        if silence < _SILENCE_HARD_LIMIT:
-            self._soft_resets += 1
-            log.warning(
-                "FCM %.0f dk sessiz - soket kapatilip yeniden baglanti zorlaniyor",
-                silence / 60,
-            )
-            self._close_socket()
-            return
-
-        # Yumusak sifirlama da tutmadi: yeni bir alici ve thread ac.
-        # Eski thread daemon, soket hatasi alinca kendisi olecek.
+        self._soft_resets += 1
         log.error(
-            "FCM %.0f dk sessiz ve yumusak sifirlama ise yaramadi - dinleyici yeniden kuruluyor",
+            "FCM %.0f dk sessiz - dinleyici yeniden kuruluyor (%d. kez)",
             silence / 60,
+            self._soft_resets,
         )
         self._close_socket()
         self._spawn()
@@ -223,7 +297,7 @@ class FcmSupervisor:
 
     @property
     def healthy(self) -> bool:
-        return self.alive and self._silence_seconds() < _SILENCE_SOFT_LIMIT
+        return self.alive and self._silence_seconds() < _SILENCE_LIMIT
 
     def health(self) -> dict[str, Any]:
         return {
@@ -237,4 +311,6 @@ class FcmSupervisor:
             "last_notification_at": self.last_notification_at or None,
             "restarts": self._restart_count,
             "soft_resets": self._soft_resets,
+            "probe_failures": self.probe_failures,
+            "probe_pending": bool(self._probe_sent_at),
         }

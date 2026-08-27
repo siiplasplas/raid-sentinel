@@ -80,6 +80,11 @@ class RustSocketSupervisor:
                 await self._health_task
             self._health_task = None
 
+        # Once sunucu tarafindaki abonelikleri birak, sonra baglantiyi kapat.
+        if self._connected:
+            for entity_id in sorted(self._tracked):
+                await self._unsubscribe(entity_id)
+
         for entity_id, listener in list(self._listeners.items()):
             with contextlib.suppress(Exception):
                 EntityEventPayload.HANDLER_LIST.unregister(listener, self._details)
@@ -185,6 +190,20 @@ class RustSocketSupervisor:
             )
             return False
 
+        # Zaten aboneysek tekrar abone OLMA. Rust her cagriyi yeni bir
+        # abone sayiyor ve entity basina bir limit var; her yeniden
+        # baslatmada korlemesine abone olmak "too_many_subscribers" ile
+        # sonuclaniyor ve o andan sonra hicbir olay gelmiyor.
+        try:
+            already = await self._socket.check_subscription_to_entity(entity_id)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Abonelik durumu okunamadi (id=%s): %s", entity_id, exc)
+            already = False
+
+        if already is True:
+            log.info("Cihaz zaten izleniyor: %s", entity_id)
+            return True
+
         try:
             await self._socket.set_subscription_to_entity(entity_id, True)
         except Exception as exc:  # noqa: BLE001
@@ -193,6 +212,17 @@ class RustSocketSupervisor:
 
         log.info("Cihaz izleniyor: %s (deger=%s)", entity_id, getattr(info, "value", None))
         return True
+
+    async def _unsubscribe(self, entity_id: int) -> None:
+        """Aboneligi birakir.
+
+        Kapanirken bunu yapmazsak sunucu tarafinda abone yuvasi sizdiriyoruz
+        ve birkac yeniden baslatma sonrasi limit doluyor.
+        """
+        try:
+            await self._socket.set_subscription_to_entity(entity_id, False)
+        except Exception as exc:  # noqa: BLE001 - kapanisi engellemesin
+            log.debug("Abonelik birakilamadi (id=%s): %s", entity_id, exc)
 
     async def _resubscribe_all(self) -> None:
         if not self._tracked:

@@ -26,9 +26,11 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 from sentinel.base_model import BaseGraph, BaseModelError, base_path
 from sentinel.escalation import Contact
-from sentinel.models import Event, EventKind, Severity
+from sentinel.models import Event, SensorKind, Severity
+from sentinel.notify import sample_raid_event
 from sentinel.raiddata import DEPLOYABLE_COST, WALL_COST, Tier, WeaponClass
-from sentinel.settings_store import SettingsError, apply_updates, describe
+from sentinel.settings_store import SettingsError, describe
+from sentinel.team import Team, TeamError, save_team
 from sentinel.twilio_caller import TwilioCaller
 
 if TYPE_CHECKING:
@@ -185,6 +187,7 @@ def create_app(sentinel: Sentinel) -> FastAPI:
                     "type": str(e.entity_type),
                     "zone": e.zone,
                     "seismic_level": e.seismic_level,
+                    "sensor_kind": str(e.sensor_kind),
                     "last_value": e.last_value,
                     "last_seen": e.last_seen,
                 }
@@ -201,12 +204,9 @@ def create_app(sentinel: Sentinel) -> FastAPI:
     @app.post("/api/settings")
     async def update_settings(updates: dict[str, Any] = Body(...)) -> JSONResponse:
         try:
-            _, changed = apply_updates(sentinel.data_dir, updates, sentinel.settings)
+            changed = await sentinel.update_settings(updates)
         except SettingsError as exc:
             return JSONResponse(status_code=400, content={"error": str(exc)})
-
-        if changed:
-            await sentinel.reload_settings()
 
         return JSONResponse(
             content={
@@ -239,8 +239,16 @@ def create_app(sentinel: Sentinel) -> FastAPI:
                     content={"error": "Sismik kademe 1, 2 veya 3 olmali"},
                 )
 
+        raw_kind = str(body.get("sensor_kind") or "").strip() or None
+        if raw_kind is not None and raw_kind not in {k.value for k in SensorKind}:
+            valid = ", ".join(k.value for k in SensorKind)
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Sensor turu su degerlerden biri olmali: {valid}"},
+            )
+
         ok = await sentinel.store.set_entity_config(
-            entity_id, zone=zone, seismic_level=level
+            entity_id, zone=zone, seismic_level=level, sensor_kind=raw_kind
         )
         if not ok:
             return JSONResponse(status_code=404, content={"error": "Cihaz bulunamadi"})
@@ -269,10 +277,12 @@ def create_app(sentinel: Sentinel) -> FastAPI:
 
         zone, level = await sentinel.resolve_zone_for(entity)
         await sentinel.raid.feed(
-            zone=zone, entity_name=entity.name, entity_id=entity_id, seismic_level=level
+            zone=zone, entity_name=entity.name, entity_id=entity_id,
+            seismic_level=level, sensor_kind=str(entity.sensor_kind),
         )
         return JSONResponse(
-            content={"ok": True, "zone": zone, "seismic_level": level}
+            content={"ok": True, "zone": zone, "seismic_level": level,
+                     "sensor_kind": str(entity.sensor_kind)}
         )
 
     # --- kurulum durumu ----------------------------------------------------
@@ -323,16 +333,7 @@ def create_app(sentinel: Sentinel) -> FastAPI:
         if not channels:
             return {"ok": False, "error": "Yapilandirilmis kanal yok"}
 
-        await sentinel.router.dispatch(
-            Event(
-                kind=EventKind.RAID_STARTED,
-                severity=Severity.CRITICAL,
-                title="Deneme: Garaj saldiri altinda",
-                body="Bu bir testtir. Gercek bir raid degil.",
-                zone="Garaj",
-                entity_name="Garaj S3",
-            )
-        )
+        await sentinel.router.dispatch(sample_raid_event())
         return {"ok": True, "channels": channels}
 
     @app.post("/api/actions/test-call")
@@ -376,6 +377,26 @@ def create_app(sentinel: Sentinel) -> FastAPI:
             "error": result.error,
             "to": target,
         }
+
+    # --- takim -------------------------------------------------------------
+
+    @app.get("/api/team")
+    async def get_team() -> dict[str, Any]:
+        return {
+            **sentinel.team.to_dict(),
+            "callable": [m.name for m in sentinel.team.callable_members],
+        }
+
+    @app.put("/api/team")
+    async def put_team(body: dict[str, Any] = Body(...)) -> JSONResponse:
+        try:
+            team = Team.from_dict(body)
+        except TeamError as exc:
+            return JSONResponse(status_code=400, content={"error": str(exc)})
+
+        save_team(sentinel.data_dir, team)
+        sentinel.reload_team()
+        return JSONResponse(content={"ok": True, "count": len(team.members)})
 
     # --- us tanimi ---------------------------------------------------------
 

@@ -230,14 +230,20 @@ def _effective(spec: FieldSpec, settings: Settings) -> Any:
 
 
 def apply_updates(
-    data_dir: Path, updates: dict[str, Any], settings: Settings
+    data_dir: Path, updates: dict[str, Any], base: Settings
 ) -> tuple[dict[str, Any], list[str]]:
     """Gelen degisiklikleri dogrular, kaydeder ve GERCEKTEN degisenleri doner.
 
-    Panel formu her kaydetmede butun alanlari gonderiyor. Karsilastirma
-    override dosyasina degil **su anki gecerli degere** yapiliyor; aksi
-    halde .env'den gelen her varsayilan kalici bir override olarak yazilir
-    ve sonradan .env'i degistirmek sessizce etkisiz kalirdi.
+    `base` **override'siz taban** olmali (kod varsayilanlari + .env).
+    Karsilastirma ona yapiliyor, su anki gecerli degere degil.
+
+    Bu ayrim kritik: gecerli degere karsilastirmak, bir sirri ayni degerle
+    yeniden yazdiginda "zaten ayni, override gereksiz" deyip kaydi
+    sildiriyordu - oysa o degerin tek kaynagi o override'in kendisiydi.
+    Ayar sessizce kayboluyor, ancak yeniden baslatinca fark ediliyordu.
+
+    Panel formu her kaydetmede butun alanlari gonderiyor; tabana esit
+    olanlarin override olarak yazilmamasi da bu sayede dogru calisiyor.
 
     Bos gonderilen sir alanlari yok sayilir - panel mevcut degeri
     gostermedigi icin bos kutu "sil" anlamina gelmemeli. Silmek icin "-".
@@ -266,8 +272,8 @@ def apply_updates(
         if isinstance(value, int | float) and not isinstance(value, bool):
             _check_ranges(key, value)
 
-        if value == _effective(spec, settings):
-            # Gecerli degerle ayni: gereksiz override'i temizle.
+        if value == _effective(spec, base):
+            # Taban (kod/.env) zaten bu degeri veriyor: override gereksiz.
             # Davranis degismedigi icin "degisti" sayilmaz.
             if key in current:
                 del current[key]

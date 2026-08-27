@@ -22,7 +22,7 @@ from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-from sentinel.models import Event, EventKind, Severity
+from sentinel.models import Event, EventKind, SensorKind, Severity
 from sentinel.raiddata import SEISMIC_AVG_SULFUR, SeismicLevel
 
 log = logging.getLogger(__name__)
@@ -42,6 +42,10 @@ SeverityResolver = Callable[["RaidSession"], Severity]
 # Olay govdesine eklenecek ek bilgi (ornegin TC'ye ETA). Toplayici us
 # modelini bilmez; uygulama bagladiginda bildirimlerde gorunur.
 DetailResolver = Callable[["RaidSession"], str]
+
+# Olayin `raw` alanina eklenecek baglam (tehdit, ETA, sulfur...). Bildirim
+# kanallari bunu okuyup zengin gosterim uretiyor.
+ContextResolver = Callable[["RaidSession"], dict[str, object]]
 
 DEFAULT_ZONE = "Bilinmeyen bolge"
 
@@ -66,6 +70,9 @@ class RaidSession:
     # oturum ortalamasi degil son olcumler kullanilir ki hizlanma/yavaslama
     # gorunsun.
     intervals: list[float] = field(default_factory=list)
+    # Tetiklemeyi ureten sensor turleri. Bildirim metni buna gore
+    # yaziliyor - HBHF tetiklemesine 'C4 patladi' demek yalan olur.
+    kinds: set[str] = field(default_factory=set)
 
     @property
     def duration(self) -> float:
@@ -103,17 +110,30 @@ class RaidSession:
             return 0.0
         return self.trigger_count / (self.duration / 60.0)
 
+    @property
+    def only_presence(self) -> bool:
+        """Butun tetiklemeler hareket sensorunden mi geldi."""
+        return bool(self.kinds) and self.kinds == {str(SensorKind.PRESENCE)}
+
     def describe(self) -> str:
         parts = [f"{self.trigger_count} tetikleme"]
 
         level = self.heaviest_level
-        if level is not None:
+        if self.only_presence:
+            # Hareket sensoru patlama gormez; kademe elle atanmis olsa bile
+            # "C4 patladi" demek yanlis olur.
+            parts.append("hareket algilandi")
+        elif level is not None:
             names = {
                 SeismicLevel.LIGHT: "el bombasi/beancan",
                 SeismicLevel.MEDIUM: "satchel/patlayici mermi",
                 SeismicLevel.HEAVY: "C4/roket",
             }
-            parts.append(f"en agir: {names[level]}")
+            label = names[level]
+            if str(SensorKind.EXPLOSION) not in self.kinds:
+                # Sismik oldugu dogrulanmadi - kademe kullanicinin beyani
+                label += " (kademe elle atanmis)"
+            parts.append(f"en agir: {label}")
 
         if self.duration >= 60:
             parts.append(f"{self.duration / 60:.0f} dk suredir")
@@ -138,11 +158,13 @@ class RaidAggregator:
         on_session_update: SessionObserver | None = None,
         severity_for: SeverityResolver | None = None,
         detail_for: DetailResolver | None = None,
+        context_for: ContextResolver | None = None,
     ) -> None:
         self._emit = emit
         self._on_session_update = on_session_update
         self._severity_for = severity_for
         self._detail_for = detail_for
+        self._context_for = context_for
         self._progress_interval = progress_interval
         self._quiet_timeout = quiet_timeout
         self._sweep_interval = sweep_interval
@@ -173,6 +195,7 @@ class RaidAggregator:
         entity_name: str = "",
         entity_id: int | None = None,
         seismic_level: int | None = None,
+        sensor_kind: str | None = None,
         ts: float | None = None,
     ) -> None:
         """Bir alarm tetiklemesini oturuma isler."""
@@ -183,12 +206,12 @@ class RaidAggregator:
         if session is None:
             session = RaidSession(zone=key, started_at=now, last_trigger_at=now)
             self._sessions[key] = session
-            self._update(session, now, entity_name, seismic_level)
+            self._update(session, now, entity_name, seismic_level, sensor_kind)
             await self._emit_started(session, entity_id)
             await self._observe(session)
             return
 
-        self._update(session, now, entity_name, seismic_level)
+        self._update(session, now, entity_name, seismic_level, sensor_kind)
 
         if now - session.last_progress_at >= self._progress_interval:
             session.last_progress_at = now
@@ -211,6 +234,7 @@ class RaidAggregator:
         now: float,
         entity_name: str,
         seismic_level: int | None,
+        sensor_kind: str | None = None,
     ) -> None:
         if session.trigger_count > 0:
             gap = max(0.0, now - session.last_trigger_at)
@@ -223,6 +247,8 @@ class RaidAggregator:
             session.entities.add(entity_name)
         if seismic_level is not None:
             session.levels[seismic_level] += 1
+        if sensor_kind and sensor_kind != str(SensorKind.UNKNOWN):
+            session.kinds.add(sensor_kind)
 
     # --- cikti -------------------------------------------------------------
 
@@ -238,6 +264,15 @@ class RaidAggregator:
         if not extra:
             return base_text
         return f"{base_text}\n{extra}" if base_text else extra
+
+    def _context(self, session: RaidSession) -> dict[str, object]:
+        if self._context_for is None:
+            return {}
+        try:
+            return self._context_for(session)
+        except Exception:  # noqa: BLE001 - baglam hatasi alarmi susturmasin
+            log.exception("Baglam cozumleyicisi hata verdi (%s)", session.zone)
+            return {}
 
     def _severity(self, session: RaidSession, default: Severity) -> Severity:
         if self._severity_for is None:
@@ -260,7 +295,7 @@ class RaidAggregator:
                 ),
                 zone=session.zone,
                 entity_id=entity_id,
-                raw={"trigger_count": session.trigger_count},
+                raw={"trigger_count": session.trigger_count, **self._context(session)},
             )
         )
 
@@ -277,6 +312,7 @@ class RaidAggregator:
                     "levels": dict(session.levels),
                     "estimated_sulfur": session.estimated_sulfur,
                     "rate_per_minute": round(session.rate_per_minute(), 2),
+                    **self._context(session),
                 },
             )
         )

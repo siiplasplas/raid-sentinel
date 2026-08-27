@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass, field
 from enum import IntEnum
 
-from sentinel.models import Severity
+from sentinel.models import SensorKind, Severity
 from sentinel.raid import RaidSession
 from sentinel.raiddata import SeismicLevel
 
@@ -77,7 +77,14 @@ def assess(
     if level is not None:
         points, reason = _LEVEL_SCORE[level]
         score += points
-        reasons.append(reason)
+        # Gerekce, GORULEN seyi anlatmali. Hareket sensorune elle kademe
+        # atanmis olabilir; o zaman "C4 patladi" demek yanlis olur.
+        if session.only_presence:
+            reasons.append("hareket sensoru tetiklendi (kademe elle atanmis)")
+        elif str(SensorKind.EXPLOSION) not in session.kinds:
+            reasons.append(f"{reason} (kademe elle atanmis, dogrulanmadi)")
+        else:
+            reasons.append(reason)
 
     distinct = len(session.entities)
     if distinct >= 2:

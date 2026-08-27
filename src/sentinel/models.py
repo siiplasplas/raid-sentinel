@@ -69,6 +69,19 @@ class EventKind(StrEnum):
     SENTINEL_STOPPING = "sentinel_stopping"
 
 
+class SensorKind(StrEnum):
+    """Cihazin fiziksel olarak neyi algiladigi.
+
+    Bildirim metni buna gore yaziliyor. Bilmedigimiz bir seyi iddia
+    etmemek icin: sismik sensor patlama gorur, HBHF insan gorur, ve
+    ikisini birbirine karistirmak "C4 patladi" diye yanlis alarm verir.
+    """
+
+    EXPLOSION = "explosion"   # Seismic Sensor
+    PRESENCE = "presence"     # HBHF Sensor
+    UNKNOWN = "unknown"
+
+
 class EntityType(StrEnum):
     """Rust+ yalnizca bu ucunu taniyor (rustplus.proto: AppEntityType)."""
 
@@ -100,6 +113,7 @@ class Entity:
     # Panelden elle atanan sismik kademe. None ise cihaz adindan cikarilir
     # ("Garaj S3" -> 3). Elle atama adin onune gecer.
     seismic_level: int | None = None
+    sensor_kind: SensorKind = SensorKind.UNKNOWN
     last_value: bool | None = None
     last_seen: float | None = None
     paired_at: float = field(default_factory=time.time)

@@ -157,3 +157,59 @@ async def test_severity_comes_from_resolver_not_hardcoded():
     events.clear()
     await agg.feed(zone="Garaj", entity_name="Garaj S3", seismic_level=3)
     assert events[0].severity is Severity.CRITICAL
+
+
+async def test_presence_sensor_is_not_reported_as_an_explosion():
+    """En kritik durustluk kurali.
+
+    Kullanici tek bir HBHF alarmina elle 'kademe 3' atayabiliyor (yuksek
+    tehdit uretsin diye). Bu, bildirimde "C4/roket kademesinde patlama"
+    yazmasini hakli kilmaz - sensor patlama gormedi, insan gordu.
+    """
+    from sentinel.models import SensorKind
+    from sentinel.scoring import assess, severity_for
+
+    events = []
+    agg = make_aggregator(
+        events, severity_for=severity_for,
+        context_for=lambda s: {"summary": s.describe(),
+                               "threat_reasons": assess(s).reasons},
+    )
+
+    await agg.feed(zone="Garaj", entity_name="Garaj", seismic_level=3,
+                   sensor_kind=str(SensorKind.PRESENCE))
+
+    # Discord govdesi bu ozetten uretiliyor
+    summary = events[0].raw["summary"]
+    assert "hareket algilandi" in summary
+    assert "C4" not in summary
+    assert not any("C4" in r for r in events[0].raw["threat_reasons"]), (
+        "Puanlama gerekcesi de patlama iddia etmemeli"
+    )
+
+
+async def test_unverified_tier_is_marked_as_assumed():
+    """Sismik oldugu dogrulanmamis bir kademe, beyan olarak isaretlenmeli."""
+    events = []
+    agg = make_aggregator(events, progress_interval=0)
+
+    await agg.feed(zone="Garaj", seismic_level=3)
+    await agg.feed(zone="Garaj", seismic_level=3)
+
+    progress = [e for e in events if e.kind is EventKind.RAID_PROGRESS][-1]
+    assert "kademe elle atanmis" in progress.body
+
+
+async def test_confirmed_seismic_tier_is_stated_plainly():
+    from sentinel.models import SensorKind
+
+    events = []
+    agg = make_aggregator(events, progress_interval=0)
+
+    for _ in range(2):
+        await agg.feed(zone="Garaj", seismic_level=3,
+                       sensor_kind=str(SensorKind.EXPLOSION))
+
+    progress = [e for e in events if e.kind is EventKind.RAID_PROGRESS][-1]
+    assert "C4/roket" in progress.body
+    assert "elle atanmis" not in progress.body

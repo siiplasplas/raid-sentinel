@@ -23,8 +23,7 @@ from sentinel.base_model import BaseGraph, BaseModelError, base_path
 from sentinel.config import get_settings
 from sentinel.escalation import Contact
 from sentinel.logging import setup_logging
-from sentinel.models import Event, EventKind, Severity
-from sentinel.notify import build_router_from_settings
+from sentinel.notify import build_router_from_settings, sample_raid_event
 from sentinel.raiddata import WeaponClass
 from sentinel.rust.credentials import load_credentials
 from sentinel.rust.register import PairingError, register
@@ -176,16 +175,7 @@ async def cmd_test_notify(_args: argparse.Namespace) -> int:
     print(f"Deneme gonderiliyor: {', '.join(n.name for n in router.notifiers)}")
 
     # CRITICAL secildi: en yuksek esikli kanal da dahil hepsi tetiklensin.
-    await router.dispatch(
-        Event(
-            kind=EventKind.RAID_STARTED,
-            severity=Severity.CRITICAL,
-            title="Deneme: Garaj saldiri altinda",
-            body="Bu bir testtir. Gercek bir raid degil.",
-            zone="Garaj",
-            entity_name="Garaj S3",
-        )
-    )
+    await router.dispatch(sample_raid_event())
     await router.aclose()
     print("Gonderildi. Kanallari kontrol et.")
     return 0

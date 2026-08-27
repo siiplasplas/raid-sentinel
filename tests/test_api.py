@@ -281,7 +281,10 @@ async def test_simulate_pushes_through_the_real_pipeline(sentinel, client):
     response = client.post("/api/entities/3/simulate")
 
     assert response.status_code == 200
-    assert response.json() == {"ok": True, "zone": "Garaj", "seismic_level": 3}
+    body = response.json()
+    assert body["ok"] is True
+    assert body["zone"] == "Garaj"
+    assert body["seismic_level"] == 3
 
     raids = client.get("/api/raids").json()["raids"]
     assert [r["zone"] for r in raids] == ["Garaj"]

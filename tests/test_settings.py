@@ -157,3 +157,32 @@ def test_stale_keys_in_file_are_dropped(data_dir, settings):
     )
 
     assert load_overrides(data_dir) == {"ntfy_topic": "gecerli"}
+
+
+def test_rewriting_a_secret_with_the_same_value_keeps_it(data_dir, settings):
+    """Sahada kaybedilen ayar: bir sirri ayni degerle yeniden yazmak onu
+    silmemeli. Karsilastirma tabana yapilmazsa, override kendi urettigi
+    degere esit gorunur ve "gereksiz" sayilip silinir."""
+    secret = "https://discord.com/api/webhooks/1/AAAA"
+    apply_updates(data_dir, {"discord_webhook_url": secret}, settings)
+
+    # Kullanici ayni degeri tekrar yaziyor
+    apply_updates(data_dir, {"discord_webhook_url": secret}, settings)
+
+    assert load_overrides(data_dir).get("discord_webhook_url") == secret
+    assert reapply(settings, data_dir).discord_webhook_url == secret
+
+
+def test_removing_an_override_reverts_to_base(data_dir, settings):
+    """Override kaldirilinca deger gercekten tabana donmeli.
+
+    Yeniden yukleme bellekteki ayarlarin uzerine binerse, kaldirilan
+    override hic geri alinmaz ve silinme ancak yeniden baslatinca
+    fark edilir."""
+    apply_updates(data_dir, {"ntfy_topic": "gecici"}, settings)
+    assert reapply(settings, data_dir).ntfy_topic == "gecici"
+
+    apply_updates(data_dir, {"ntfy_topic": "-"}, settings)
+
+    live = reapply(settings, data_dir)
+    assert live.ntfy_topic == settings.ntfy_topic == ""

@@ -222,6 +222,7 @@ figcaption{font-size:.8rem;color:var(--ink-3);margin-top:.5rem}
     <button role="tab" aria-selected="true"  data-tab="events">Olaylar</button>
     <button role="tab" aria-selected="false" data-tab="devices">Cihazlar</button>
     <button role="tab" aria-selected="false" data-tab="base">Üs</button>
+    <button role="tab" aria-selected="false" data-tab="team">Takım</button>
     <button role="tab" aria-selected="false" data-tab="settings">Ayarlar</button>
     <button role="tab" aria-selected="false" data-tab="setup">Kurulum<span id="setup-badge" class="badge" hidden></span></button>
     <button role="tab" aria-selected="false" data-tab="system">Sistem</button>
@@ -237,6 +238,29 @@ figcaption{font-size:.8rem;color:var(--ink-3);margin-top:.5rem}
   <section id="tab-base" hidden>
     <div id="base-msg" class="msg" hidden></div>
     <div id="base-editor"></div>
+  </section>
+
+  <section id="tab-team" hidden>
+    <div id="team-msg" class="msg" hidden></div>
+    <div class="guide">
+      <h4>Tek bağlantı, çok kişi</h4>
+      <p>Rust+ eşleştirmesi tek bir hesaba ait ve öyle kalıyor — her üyenin
+         ayrı eşleştirme yapmasına gerek yok. Sistem tek bağlantıdan besleniyor,
+         çıkışı buradaki kişilere dağıtıyor.</p>
+      <ul>
+        <li><strong>Discord</strong> — tek kanal herkese gider; kritik olayda
+            Discord ID'si girilmiş üyeler ayrıca etiketlenir</li>
+        <li><strong>ntfy</strong> — herkes aynı konuya abone olur, ek ayar yok</li>
+        <li><strong>Telefon</strong> — buradaki <strong>sırayla</strong> aranır,
+            ilk cevap veren zinciri durdurur</li>
+      </ul>
+    </div>
+    <div id="team-list"></div>
+    <div class="actions">
+      <button class="secondary" id="team-add">+ Üye ekle</button>
+      <button class="primary" id="team-save">Kaydet</button>
+      <button class="secondary" id="team-reload">Geri al</button>
+    </div>
   </section>
 
   <section id="tab-settings" hidden>
@@ -267,6 +291,7 @@ const $ = (id) => document.getElementById(id);
 const MAX_EVENTS = 200;
 let state = null, events = [], soundOn = false;
 let baseModel = null, baseOptions = null, setupInfo = null;
+let everConnected = false;
 
 // --- yardimcilar ---------------------------------------------------------
 
@@ -450,6 +475,14 @@ async function loadDevices() {
           ${levels}
         </select>
       </div>
+      <div class="dev-edit">
+        <select class="kind">
+          <option value="unknown" ${d.sensor_kind === "unknown" ? "selected" : ""}>Sensör türü: belirsiz</option>
+          <option value="explosion" ${d.sensor_kind === "explosion" ? "selected" : ""}>Sismik — patlama görür</option>
+          <option value="presence" ${d.sensor_kind === "presence" ? "selected" : ""}>HBHF — insan görür</option>
+        </select>
+        <span class="dev-meta">Bildirim metni buna göre yazılır</span>
+      </div>
       <div class="dev-btns">
         <button class="tiny save">Kaydet</button>
         <button class="tiny test">Test tetikle</button>
@@ -467,7 +500,8 @@ async function loadDevices() {
 async function saveDevice(card) {
   const { ok, data } = await api(`/api/entities/${card.dataset.id}`,
     jsonBody("PATCH", { zone: card.querySelector(".zone").value,
-                        seismic_level: card.querySelector(".level").value }));
+                        seismic_level: card.querySelector(".level").value,
+                        sensor_kind: card.querySelector(".kind").value }));
   if (!ok) { msg("devices-msg", "err", data.error || "Kaydedilemedi"); return; }
   msg("devices-msg", "ok", "Cihaz güncellendi.");
   loadDevices(); loadSetup();
@@ -709,6 +743,83 @@ async function saveBase() {
   loadSetup();
 }
 
+// --- takim ---------------------------------------------------------------
+
+let teamModel = null;
+
+function memberHtml(m, index) {
+  return `<div class="conn" data-i="${index}">
+    <div class="conn-head">
+      <input class="m-name" value="${esc(m.name || "")}" placeholder="Ad">
+      <span class="arrow">${index + 1}.</span>
+      <input class="m-phone" value="${esc(m.phone || "")}" placeholder="+905000000000">
+      <label class="dev-meta" style="white-space:nowrap">
+        <input type="checkbox" class="m-active" ${m.active !== false ? "checked" : ""}
+               style="width:auto;margin-right:.3rem"> aktif
+      </label>
+      <button class="tiny danger m-del" title="Üyeyi sil">✕</button>
+    </div>
+    <div class="obs">
+      <div class="ob" style="grid-template-columns:1fr">
+        <input class="m-discord" value="${esc(m.discord_id || "")}"
+               placeholder="Discord kullanıcı ID (opsiyonel) — kritik olayda etiketlenir">
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderTeam() {
+  const box = $("team-list");
+  if (!teamModel) { box.innerHTML = ""; return; }
+
+  if (!teamModel.members.length) {
+    box.innerHTML = `<div class="rows"><div class="empty">Henüz üye yok.<br>
+      Telefon zinciri için en az bir kişi ekle.</div></div>`;
+  } else {
+    box.innerHTML = `<div class="label">Arama sırası</div>` +
+      teamModel.members.map(memberHtml).join("");
+  }
+
+  box.querySelectorAll(".conn").forEach((el) => {
+    el.querySelector(".m-del").onclick = () => {
+      readTeam();
+      teamModel.members.splice(Number(el.dataset.i), 1);
+      renderTeam();
+    };
+  });
+}
+
+function readTeam() {
+  teamModel.members = [...document.querySelectorAll("#team-list .conn")].map((el) => ({
+    name: el.querySelector(".m-name").value.trim(),
+    phone: el.querySelector(".m-phone").value.trim(),
+    discord_id: el.querySelector(".m-discord").value.trim(),
+    active: el.querySelector(".m-active").checked,
+  }));
+}
+
+async function loadTeam() {
+  const { ok, data } = await api("/api/team");
+  teamModel = ok ? { members: data.members || [] } : { members: [] };
+  msg("team-msg", "", "");
+  renderTeam();
+}
+
+async function saveTeam() {
+  readTeam();
+
+  const empty = teamModel.members.find((m) => !m.name);
+  if (empty) { msg("team-msg", "err", "Her üyenin adı olmalı."); return; }
+
+  const { ok, data } = await api("/api/team", jsonBody("PUT", teamModel));
+  if (!ok) { msg("team-msg", "err", data.error || "Kaydedilemedi"); return; }
+
+  const callable = teamModel.members.filter((m) => m.active && m.phone).length;
+  msg("team-msg", "ok",
+    `${data.count} üye kaydedildi · telefon zincirinde ${callable} kişi var.`);
+  loadSetup();
+}
+
 // --- ayarlar -------------------------------------------------------------
 
 async function loadSettings() {
@@ -923,8 +1034,9 @@ function renderSystem() {
 
 // --- sekmeler ------------------------------------------------------------
 
-const TABS = ["events", "devices", "base", "settings", "setup", "system"];
-const ON_OPEN = { devices: loadDevices, base: loadBase, settings: loadSettings, setup: loadSetup };
+const TABS = ["events", "devices", "base", "team", "settings", "setup", "system"];
+const ON_OPEN = { devices: loadDevices, base: loadBase, team: loadTeam,
+                  settings: loadSettings, setup: loadSetup };
 
 document.querySelectorAll("nav.tabs button").forEach((btn) => {
   btn.onclick = () => {
@@ -935,6 +1047,14 @@ document.querySelectorAll("nav.tabs button").forEach((btn) => {
     if (loader) loader();
   };
 });
+
+$("team-save").onclick = saveTeam;
+$("team-reload").onclick = loadTeam;
+$("team-add").onclick = () => {
+  readTeam();
+  teamModel.members.push({ name: "", phone: "", discord_id: "", active: true });
+  renderTeam();
+};
 
 $("settings-save").onclick = saveSettings;
 $("try-notify").onclick = async () => {
@@ -964,7 +1084,18 @@ function setConn(cls, text) {
 
 function connect() {
   const source = new EventSource("/api/stream");
-  source.addEventListener("open", () => setConn("up", "canlı"));
+  source.addEventListener("open", async () => {
+    setConn("up", "canlı");
+    // Bagalanti koptugu surede olan olaylar SSE'den gelmez - kopma
+    // sonrasi listeyi tazelemezsek o araliktaki alarmlar panelde hic
+    // gorunmez. Bir alarm sisteminde bu kabul edilemez.
+    if (everConnected) {
+      const { data } = await api("/api/events?limit=100");
+      if (data.events) { events = data.events; renderEvents(); }
+      loadSetup();
+    }
+    everConnected = true;
+  });
   source.addEventListener("state", (m) => {
     state = JSON.parse(m.data);
     renderRaids(); renderSystem();

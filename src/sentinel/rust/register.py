@@ -30,7 +30,7 @@ import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 from uuid import uuid4
 
 import httpx
@@ -111,24 +111,59 @@ _PAIR_PAGE = """<!doctype html>
 """
 
 
-def _make_handler(token_queue: queue.Queue[str], login_url: str) -> type[BaseHTTPRequestHandler]:
+# Token'in geri donebilecegi parametre adlari. Facepunch'in sayfasi
+# degistiginde ad da degisebiliyor; birkacini birden deniyoruz.
+_TOKEN_PARAMS = ("token", "Token", "authToken", "auth_token")
+
+
+def _extract_token(query: str) -> str:
+    params = parse_qs(query)
+    for name in _TOKEN_PARAMS:
+        value = (params.get(name) or [""])[0].strip()
+        if value:
+            return value
+    return ""
+
+
+def _make_handler(
+    token_queue: queue.Queue[str], login_url: str, callback_url: str
+) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802 - stdlib arayuzu
             parsed = urlparse(self.path)
 
             if parsed.path == "/callback":
-                params = parse_qs(parsed.query)
-                token = (params.get("token") or [""])[0]
+                token = _extract_token(parsed.query)
                 if token:
                     token_queue.put(token)
                     self._respond(
                         200, "<h1>Tamam</h1><p>Bu sekmeyi kapatabilirsin.</p>"
                     )
-                else:
-                    self._respond(400, "<h1>Token gelmedi</h1>")
+                    return
+
+                # Token beklenen adlarin hicbirinde degil - ham sorguyu
+                # gosterip logla ki hangi ada dondugunu gorebilelim.
+                log.error("Callback token icermiyor. Ham sorgu: %r", parsed.query)
+                self._respond(
+                    400,
+                    "<h1>Token gelmedi</h1><p>Gelen parametreler:</p>"
+                    f"<pre>{parsed.query or '(bos)'}</pre>",
+                )
                 return
 
             if parsed.path in ("/", "/index.html"):
+                # Once dogrudan yonlendirme: Facepunch girisi returnUrl
+                # destekliyor ve bu yol popup da cross-origin enjeksiyon da
+                # gerektirmiyor. Tarayicilar popup penceresine ozellik
+                # yazmayi engelliyor, eski yontem bu yuzden kirildi.
+                target = f"{login_url}?returnUrl={quote(callback_url, safe='')}"
+                self.send_response(302)
+                self.send_header("Location", target)
+                self.end_headers()
+                return
+
+            if parsed.path == "/legacy":
+                # Yonlendirme ise yaramazsa eski popup yontemi.
                 self._respond(200, _PAIR_PAGE.format(login_url=login_url))
                 return
 
@@ -155,7 +190,8 @@ def _steam_login_blocking(port: int, host: str = "127.0.0.1") -> str:
     ile kendi makinenden baglanabilirsin.
     """
     token_queue: queue.Queue[str] = queue.Queue()
-    handler = _make_handler(token_queue, FACEPUNCH_LOGIN_URL)
+    callback_url = f"http://localhost:{port}/callback"
+    handler = _make_handler(token_queue, FACEPUNCH_LOGIN_URL, callback_url)
 
     try:
         server = ThreadingHTTPServer((host, port), handler)

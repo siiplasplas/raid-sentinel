@@ -18,7 +18,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from sentinel.models import Entity, EntityType, Event, EventKind, Severity
+from sentinel.models import Entity, EntityType, Event, EventKind, SensorKind, Severity
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS entities (
     name          TEXT NOT NULL,
     zone          TEXT,
     seismic_level INTEGER,
+    sensor_kind   TEXT,
     last_value  INTEGER,
     last_seen   REAL,
     paired_at   REAL NOT NULL,
@@ -164,8 +165,8 @@ class Store:
         self.conn.execute(
             """INSERT INTO entities
                (entity_id, server_id, entity_type, name, zone, seismic_level,
-                last_value, last_seen, paired_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                sensor_kind, last_value, last_seen, paired_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(entity_id, server_id) DO UPDATE SET
                    entity_type = excluded.entity_type,
                    name        = excluded.name,
@@ -174,6 +175,8 @@ class Store:
                    zone          = COALESCE(excluded.zone, entities.zone),
                    seismic_level = COALESCE(excluded.seismic_level,
                                             entities.seismic_level),
+                   sensor_kind   = COALESCE(excluded.sensor_kind,
+                                            entities.sensor_kind),
                    last_value  = excluded.last_value,
                    last_seen   = excluded.last_seen""",
             (
@@ -183,6 +186,7 @@ class Store:
                 entity.name,
                 entity.zone,
                 entity.seismic_level,
+                str(entity.sensor_kind) if entity.sensor_kind else None,
                 None if entity.last_value is None else int(entity.last_value),
                 entity.last_seen,
                 entity.paired_at,
@@ -226,11 +230,12 @@ class Store:
             )
 
     def _set_entity_config(
-        self, entity_id: int, zone: str | None, level: int | None
+        self, entity_id: int, zone: str | None, level: int | None, kind: str | None
     ) -> int:
         cursor = self.conn.execute(
-            "UPDATE entities SET zone = ?, seismic_level = ? WHERE entity_id = ?",
-            (zone, level, entity_id),
+            "UPDATE entities SET zone = ?, seismic_level = ?, sensor_kind = ?"
+            " WHERE entity_id = ?",
+            (zone, level, kind, entity_id),
         )
         self.conn.commit()
         return cursor.rowcount
@@ -241,6 +246,7 @@ class Store:
         *,
         zone: str | None,
         seismic_level: int | None,
+        sensor_kind: str | None = None,
     ) -> bool:
         """Panelden bolge/kademe atamasi. Degistirilen satir varsa True.
 
@@ -251,7 +257,7 @@ class Store:
         """
         async with self._lock:
             rows = await asyncio.to_thread(
-                self._set_entity_config, entity_id, zone, seismic_level
+                self._set_entity_config, entity_id, zone, seismic_level, sensor_kind
             )
         return rows > 0
 
@@ -314,6 +320,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "seismic_level" not in existing:
         conn.execute("ALTER TABLE entities ADD COLUMN seismic_level INTEGER")
         log.info("Veritabani guncellendi: entities.seismic_level eklendi")
+    if "sensor_kind" not in existing:
+        conn.execute("ALTER TABLE entities ADD COLUMN sensor_kind TEXT")
+        log.info("Veritabani guncellendi: entities.sensor_kind eklendi")
 
 
 def _row_to_event(row: sqlite3.Row) -> Event:
@@ -344,6 +353,7 @@ def _row_to_entity(row: sqlite3.Row) -> Entity:
         name=row["name"],
         zone=row["zone"],
         seismic_level=row["seismic_level"],
+        sensor_kind=SensorKind(row["sensor_kind"]) if row["sensor_kind"] else SensorKind.UNKNOWN,
         last_value=None if row["last_value"] is None else bool(row["last_value"]),
         last_seen=row["last_seen"],
         paired_at=row["paired_at"],
