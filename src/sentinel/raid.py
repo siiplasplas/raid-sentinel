@@ -1,0 +1,346 @@
+"""Raid toplayici: ham tetiklemeleri anlamli olaylara cevirir.
+
+Ham alarm akisini oldugu gibi Discord'a dokmek ise yaramaz - bir raid
+sirasinda saniyeler icinde onlarca tetikleme gelir ve kanal okunmaz hale
+gelir. Daha kotusu: her tetikleme icin telefon calarsa fatura patlar.
+
+Burada tetiklemeler bolgeye gore oturumlarda toplanir ve uc olay uretilir:
+ilk temas (RAID_STARTED), duzenli ilerleme ozeti (RAID_PROGRESS) ve sessizlik
+sonrasi kapanis (RAID_ENDED).
+
+F2'deki skorlama motoru bu sinifin uzerine binecek: sahte alarm filtresi,
+eskalasyon ve arama kararlari oturum durumuna bakarak verilecek.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import logging
+import time
+from collections import Counter
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
+
+from sentinel.models import Event, EventKind, Severity
+from sentinel.raiddata import SEISMIC_AVG_SULFUR, SeismicLevel
+
+log = logging.getLogger(__name__)
+
+EventEmitter = Callable[[Event], Awaitable[None]]
+
+# Her tetiklemeden sonra cagrilir. Telefon zinciri karari bunun uzerine
+# kuruluyor - toplayici o karari bilmiyor.
+SessionObserver = Callable[["RaidSession"], Awaitable[None]]
+
+# Olayin siddetini belirler. Toplayici puanlama kurallarini bilmez;
+# enjekte edilmezse "her sey kritik" varsayimina duser ve tek bir sahte
+# HBHF tetiklemesi gece 4'te ntfy acil push'u gonderir. Bu yuzden
+# uygulama tehdit degerlendirmesini buraya baglar.
+SeverityResolver = Callable[["RaidSession"], Severity]
+
+# Olay govdesine eklenecek ek bilgi (ornegin TC'ye ETA). Toplayici us
+# modelini bilmez; uygulama bagladiginda bildirimlerde gorunur.
+DetailResolver = Callable[["RaidSession"], str]
+
+DEFAULT_ZONE = "Bilinmeyen bolge"
+
+_SWEEP_INTERVAL = 15.0
+
+# Hiz tahmininde kullanilacak en fazla olcum sayisi
+_MAX_INTERVALS = 20
+
+
+@dataclass(slots=True)
+class RaidSession:
+    """Tek bir bolgedeki suregelen saldiri."""
+
+    zone: str
+    started_at: float
+    last_trigger_at: float
+    trigger_count: int = 0
+    levels: Counter[int] = field(default_factory=Counter)
+    entities: set[str] = field(default_factory=set)
+    last_progress_at: float = 0.0
+    # Ardisik tetiklemeler arasi saniye. ETA'nin hiz tahmini buna dayaniyor;
+    # oturum ortalamasi degil son olcumler kullanilir ki hizlanma/yavaslama
+    # gorunsun.
+    intervals: list[float] = field(default_factory=list)
+
+    @property
+    def duration(self) -> float:
+        return max(0.0, self.last_trigger_at - self.started_at)
+
+    @property
+    def explosive_triggers(self) -> int:
+        """Yalnizca sismik kademesi bilinen (yani patlama olan) tetiklemeler."""
+        return sum(self.levels.values())
+
+    @property
+    def estimated_sulfur(self) -> int:
+        """Kademe basina ortalama maliyetle kaba tahmin.
+
+        Kademe bilinmiyorsa (duz alarm, sismik yok) sifir sayilir -
+        uydurmaktansa eksik gostermeyi tercih ediyoruz.
+        """
+        total = 0
+        for level, count in self.levels.items():
+            try:
+                tier = SeismicLevel(level)
+            except ValueError:
+                continue
+            total += SEISMIC_AVG_SULFUR.get(tier, 0) * count
+        return total
+
+    @property
+    def heaviest_level(self) -> SeismicLevel | None:
+        if not self.levels:
+            return None
+        return SeismicLevel(max(self.levels))
+
+    def rate_per_minute(self) -> float:
+        if self.duration < 1.0:
+            return 0.0
+        return self.trigger_count / (self.duration / 60.0)
+
+    def describe(self) -> str:
+        parts = [f"{self.trigger_count} tetikleme"]
+
+        level = self.heaviest_level
+        if level is not None:
+            names = {
+                SeismicLevel.LIGHT: "el bombasi/beancan",
+                SeismicLevel.MEDIUM: "satchel/patlayici mermi",
+                SeismicLevel.HEAVY: "C4/roket",
+            }
+            parts.append(f"en agir: {names[level]}")
+
+        if self.duration >= 60:
+            parts.append(f"{self.duration / 60:.0f} dk suredir")
+        elif self.duration >= 1:
+            parts.append(f"{self.duration:.0f} sn suredir")
+
+        sulfur = self.estimated_sulfur
+        if sulfur:
+            parts.append(f"~{sulfur:,} sulfur".replace(",", "."))
+
+        return " · ".join(parts)
+
+
+class RaidAggregator:
+    def __init__(
+        self,
+        emit: EventEmitter,
+        *,
+        progress_interval: float = 60.0,
+        quiet_timeout: float = 300.0,
+        sweep_interval: float = _SWEEP_INTERVAL,
+        on_session_update: SessionObserver | None = None,
+        severity_for: SeverityResolver | None = None,
+        detail_for: DetailResolver | None = None,
+    ) -> None:
+        self._emit = emit
+        self._on_session_update = on_session_update
+        self._severity_for = severity_for
+        self._detail_for = detail_for
+        self._progress_interval = progress_interval
+        self._quiet_timeout = quiet_timeout
+        self._sweep_interval = sweep_interval
+        self._sessions: dict[str, RaidSession] = {}
+        self._sweeper: asyncio.Task[None] | None = None
+        self._stopping = asyncio.Event()
+
+    # --- yasam dongusu -----------------------------------------------------
+
+    async def start(self) -> None:
+        self._stopping.clear()
+        self._sweeper = asyncio.create_task(self._sweep_loop(), name="raid-sweeper")
+
+    async def stop(self) -> None:
+        self._stopping.set()
+        if self._sweeper is not None:
+            self._sweeper.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._sweeper
+            self._sweeper = None
+
+    # --- giris -------------------------------------------------------------
+
+    async def feed(
+        self,
+        *,
+        zone: str | None,
+        entity_name: str = "",
+        entity_id: int | None = None,
+        seismic_level: int | None = None,
+        ts: float | None = None,
+    ) -> None:
+        """Bir alarm tetiklemesini oturuma isler."""
+        now = ts or time.time()
+        key = zone or DEFAULT_ZONE
+
+        session = self._sessions.get(key)
+        if session is None:
+            session = RaidSession(zone=key, started_at=now, last_trigger_at=now)
+            self._sessions[key] = session
+            self._update(session, now, entity_name, seismic_level)
+            await self._emit_started(session, entity_id)
+            await self._observe(session)
+            return
+
+        self._update(session, now, entity_name, seismic_level)
+
+        if now - session.last_progress_at >= self._progress_interval:
+            session.last_progress_at = now
+            await self._emit_progress(session)
+
+        await self._observe(session)
+
+    async def _observe(self, session: RaidSession) -> None:
+        """Gozlemciyi cagirir. Hatasi olay akisini durdurmamali."""
+        if self._on_session_update is None:
+            return
+        try:
+            await self._on_session_update(session)
+        except Exception:  # noqa: BLE001
+            log.exception("Oturum gozlemcisi hata verdi (%s)", session.zone)
+
+    def _update(
+        self,
+        session: RaidSession,
+        now: float,
+        entity_name: str,
+        seismic_level: int | None,
+    ) -> None:
+        if session.trigger_count > 0:
+            gap = max(0.0, now - session.last_trigger_at)
+            session.intervals.append(gap)
+            del session.intervals[:-_MAX_INTERVALS]
+
+        session.last_trigger_at = now
+        session.trigger_count += 1
+        if entity_name:
+            session.entities.add(entity_name)
+        if seismic_level is not None:
+            session.levels[seismic_level] += 1
+
+    # --- cikti -------------------------------------------------------------
+
+    def _body(self, session: RaidSession, base_text: str) -> str:
+        """Govdeye ETA gibi ek bilgileri ekler."""
+        if self._detail_for is None:
+            return base_text
+        try:
+            extra = self._detail_for(session)
+        except Exception:  # noqa: BLE001 - ETA hatasi alarmi susturmasin
+            log.exception("Detay cozumleyicisi hata verdi (%s)", session.zone)
+            return base_text
+        if not extra:
+            return base_text
+        return f"{base_text}\n{extra}" if base_text else extra
+
+    def _severity(self, session: RaidSession, default: Severity) -> Severity:
+        if self._severity_for is None:
+            return default
+        try:
+            return self._severity_for(session)
+        except Exception:  # noqa: BLE001 - puanlama hatasi olayi susturmasin
+            log.exception("Siddet cozumleyicisi hata verdi (%s)", session.zone)
+            return default
+
+    async def _emit_started(self, session: RaidSession, entity_id: int | None) -> None:
+        session.last_progress_at = session.started_at
+        await self._emit(
+            Event(
+                kind=EventKind.RAID_STARTED,
+                severity=self._severity(session, Severity.CRITICAL),
+                title=f"{session.zone}: saldiri basladi",
+                body=self._body(
+                    session, ", ".join(sorted(session.entities)) or "Alarm tetiklendi"
+                ),
+                zone=session.zone,
+                entity_id=entity_id,
+                raw={"trigger_count": session.trigger_count},
+            )
+        )
+
+    async def _emit_progress(self, session: RaidSession) -> None:
+        await self._emit(
+            Event(
+                kind=EventKind.RAID_PROGRESS,
+                severity=self._severity(session, Severity.WARN),
+                title=f"{session.zone}: saldiri suruyor",
+                body=self._body(session, session.describe()),
+                zone=session.zone,
+                raw={
+                    "trigger_count": session.trigger_count,
+                    "levels": dict(session.levels),
+                    "estimated_sulfur": session.estimated_sulfur,
+                    "rate_per_minute": round(session.rate_per_minute(), 2),
+                },
+            )
+        )
+
+    async def _emit_ended(self, session: RaidSession) -> None:
+        await self._emit(
+            Event(
+                kind=EventKind.RAID_ENDED,
+                severity=Severity.INFO,
+                title=f"{session.zone}: saldiri durdu",
+                body=session.describe(),
+                zone=session.zone,
+                raw={
+                    "trigger_count": session.trigger_count,
+                    "levels": dict(session.levels),
+                    "estimated_sulfur": session.estimated_sulfur,
+                    "duration_seconds": round(session.duration, 1),
+                },
+            )
+        )
+
+    # --- sessizlik takibi --------------------------------------------------
+
+    async def _sweep_loop(self) -> None:
+        while not self._stopping.is_set():
+            try:
+                await asyncio.wait_for(self._stopping.wait(), timeout=self._sweep_interval)
+                return
+            except TimeoutError:
+                pass
+            await self._sweep()
+
+    async def _sweep(self) -> None:
+        now = time.time()
+        for key, session in list(self._sessions.items()):
+            if now - session.last_trigger_at < self._quiet_timeout:
+                continue
+            self._sessions.pop(key, None)
+            try:
+                await self._emit_ended(session)
+            except Exception:  # noqa: BLE001 - bir oturum digerlerini bozmasin
+                log.exception("Raid kapanis olayi gonderilemedi (%s)", key)
+
+    # --- durum -------------------------------------------------------------
+
+    @property
+    def active_zones(self) -> list[str]:
+        return sorted(self._sessions)
+
+    @property
+    def active_sessions(self) -> list[RaidSession]:
+        """Panelin ETA hesaplayabilmesi icin oturum nesnelerinin kendisi."""
+        return sorted(self._sessions.values(), key=lambda s: s.started_at)
+
+    def snapshot(self) -> list[dict[str, object]]:
+        return [
+            {
+                "zone": s.zone,
+                "started_at": s.started_at,
+                "last_trigger_at": s.last_trigger_at,
+                "trigger_count": s.trigger_count,
+                "levels": dict(s.levels),
+                "estimated_sulfur": s.estimated_sulfur,
+                "summary": s.describe(),
+            }
+            for s in self._sessions.values()
+        ]

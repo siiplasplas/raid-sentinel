@@ -1,0 +1,42 @@
+# Docker kullanmadan kurulum icin systemd birimi.
+#
+#   sudo cp deploy/raid-sentinel.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now raid-sentinel
+#
+# WorkingDirectory onemli: .env ve data/ oraya gore cozuluyor.
+
+[Unit]
+Description=Raid Sentinel - Rust ussu erken uyari sistemi
+Documentation=https://github.com/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sentinel
+Group=sentinel
+WorkingDirectory=/opt/raid-sentinel
+ExecStart=/opt/raid-sentinel/.venv/bin/sentinel run
+Environment=PYTHONUNBUFFERED=1
+
+# Alarm sistemi her kosulda geri gelmeli.
+Restart=always
+RestartSec=10
+
+# Cokme donguse girerse durdurma - surekli yeniden dene.
+StartLimitIntervalSec=0
+
+# Sertlestirme: servisin yazmasi gereken tek yer kendi data dizini.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/raid-sentinel/data
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=raid-sentinel
+
+[Install]
+WantedBy=multi-user.target

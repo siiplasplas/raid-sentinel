@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Sirlar ve calisma verisi - asla commit edilmez
+.env
+data/
+*.db
+*.db-wal
+*.db-shm
+rustplus.config.json
+fcm-credentials.json
+
+.pytest_cache/
+.ruff_cache/
+dist/

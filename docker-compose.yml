@@ -1,0 +1,30 @@
+services:
+  sentinel:
+    build: .
+    image: raid-sentinel:0.1.0
+    container_name: raid-sentinel
+    restart: unless-stopped
+
+    # Paneli BILEREK yalnizca yerel arayuze aciyoruz. Sunucudan erisim icin
+    # SSH tuneli kullan:  ssh -L 8787:localhost:8787 kullanici@sunucu
+    # Dogrudan internete acacaksan onune ters vekil ve kimlik dogrulama koy;
+    # panelde oturum yonetimi yok.
+    ports:
+      - "127.0.0.1:8787:8787"
+
+    volumes:
+      # Eslestirme kimlikleri, olay gecmisi, ayarlar ve us tanimi burada.
+      # Bu dizini kaybetmek yeniden eslestirmek demek.
+      - ./data:/app/data
+      # Ilk kurulumu dosyayla yapmak istersen; panelden de girebilirsin.
+      - ./.env:/app/.env:ro
+
+    environment:
+      - TZ=Europe/Istanbul
+
+    # Alarm sistemi: log kaybi olmasin ama disk de dolmasin.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

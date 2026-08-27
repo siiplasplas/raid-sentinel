@@ -1,0 +1,22 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Sirlar ve calisma verisi imaja girmemeli
+.env
+data/
+*.db
+*.db-wal
+*.db-shm
+rustplus.config.json
+
+.git/
+.gitignore
+.pytest_cache/
+.ruff_cache/
+tests/
+scripts/

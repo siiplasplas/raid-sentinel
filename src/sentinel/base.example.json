@@ -1,0 +1,57 @@
+{
+  "_comment": [
+    "Ussun kaba haritasi. data/base.json olarak kopyala ve kendi ussune gore duzenle.",
+    "Bolge adlari, oyun ici cihaz adlarindaki bolge adlariyla AYNI olmali:",
+    "  'Garaj S3' adli Smart Alarm -> burada 'Garaj' bolgesi.",
+    "",
+    "Her baglanti (edge) iki bolgeyi ayiran engelleri listeler.",
+    "  tier: twig | wood | stone | metal | armored   (duvar/zemin/tavan)",
+    "  type: sheet_metal_door | garage_door | armored_door | wooden_door |",
+    "        ladder_hatch | high_stone_wall | high_wood_wall |",
+    "        metal_embrasure | window_bars | auto_turret",
+    "",
+    "'sentinel base' komutu tanimi dogrular ve her bolgeden TC'ye yolu gosterir."
+  ],
+
+  "name": "Ana Us",
+  "target": "TC",
+
+  "edges": [
+    {
+      "from": "Dis Cevre",
+      "to": "Kompound",
+      "obstacles": [{ "type": "high_stone_wall", "count": 1 }]
+    },
+    {
+      "from": "Kompound",
+      "to": "Garaj",
+      "obstacles": [{ "type": "garage_door", "count": 1 }]
+    },
+    {
+      "from": "Kompound",
+      "to": "Koridor",
+      "obstacles": [
+        { "tier": "stone", "count": 1 },
+        { "type": "sheet_metal_door", "count": 1 }
+      ]
+    },
+    {
+      "from": "Garaj",
+      "to": "Airlock",
+      "obstacles": [{ "tier": "metal", "count": 1 }]
+    },
+    {
+      "from": "Koridor",
+      "to": "Airlock",
+      "obstacles": [{ "type": "armored_door", "count": 1 }]
+    },
+    {
+      "from": "Airlock",
+      "to": "TC",
+      "obstacles": [
+        { "tier": "metal", "count": 1 },
+        { "type": "sheet_metal_door", "count": 1 }
+      ]
+    }
+  ]
+}
