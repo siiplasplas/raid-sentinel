@@ -169,6 +169,26 @@ button.tiny.danger:hover{color:var(--oxide);border-color:var(--oxide)}
 .ob{display:grid;grid-template-columns:1fr 5rem auto;gap:.45rem;align-items:center}
 .ob-empty{font-size:.8rem;color:var(--ink-3)}
 
+/* --- us haritasi --- */
+.map{background:var(--panel);border:1px solid var(--line);border-radius:3px;
+  padding:.8rem;margin-bottom:1rem;overflow-x:auto}
+.map svg{display:block;min-width:100%;height:auto}
+.map .node{fill:var(--panel-2);stroke:var(--line);stroke-width:1.5}
+.map .node.target{stroke:var(--sulfur);stroke-width:2}
+.map .node.active{fill:#3a2320;stroke:var(--oxide);stroke-width:2}
+.map .node.onpath{stroke:var(--sulfur)}
+.map .zname{fill:var(--ink);font-family:var(--sans);font-size:12px}
+.map .zmeta{fill:var(--ink-3);font-family:var(--mono);font-size:9px}
+.map .link{stroke:var(--line);stroke-width:1.5;fill:none}
+.map .link.onpath{stroke:var(--sulfur);stroke-width:2.5}
+.map .cost{fill:var(--ink-3);font-family:var(--mono);font-size:9px}
+.map .cost.onpath{fill:var(--sulfur)}
+.map-legend{display:flex;gap:1rem;flex-wrap:wrap;margin-top:.6rem;
+  font-family:var(--mono);font-size:.62rem;color:var(--ink-3)}
+.map-legend b{font-weight:400}
+.map-legend .sw{display:inline-block;width:9px;height:9px;border-radius:2px;
+  margin-right:.3rem;vertical-align:-1px}
+
 /* --- kurulum --- */
 .check{background:var(--panel);padding:.6rem .8rem;display:grid;
   grid-template-columns:1.4rem 1fr;gap:.5rem;align-items:baseline}
@@ -562,6 +582,101 @@ function optionsHtml(selected) {
       ${baseOptions.deployables.map((o) => opt({ ...o, value: "type:" + o.value })).join("")}</optgroup>`;
 }
 
+function baseMapSvg(model) {
+  const zones = zonesOf(model);
+  if (!zones.length || !model.target) return "";
+
+  // Komsuluk
+  const adj = {};
+  zones.forEach((z) => { adj[z] = []; });
+  model.edges.forEach((e) => {
+    if (adj[e.from] && adj[e.to]) { adj[e.from].push(e); adj[e.to].push(e); }
+  });
+
+  // Hedefe uzaklik (adim sayisi) - sutunlari bu belirliyor.
+  // Koordinatimiz yok, ama "TC'ye kac bolge kaldi" anlamli bir eksen.
+  const dist = { [model.target]: 0 };
+  const queue = [model.target];
+  while (queue.length) {
+    const z = queue.shift();
+    adj[z].forEach((e) => {
+      const other = e.from === z ? e.to : e.from;
+      if (dist[other] === undefined) { dist[other] = dist[z] + 1; queue.push(other); }
+    });
+  }
+  const reachableMax = Math.max(0, ...Object.values(dist));
+  zones.forEach((z) => { if (dist[z] === undefined) dist[z] = reachableMax + 1; });
+  const maxDist = Math.max(...zones.map((z) => dist[z]));
+
+  // Aktif saldiri ve TC'ye giden yol
+  const raids = (state && state.active_raids) || [];
+  const activeZones = new Set(raids.map((r) => r.zone));
+  const pathZones = new Set();
+  raids.forEach((r) => {
+    if (!r.eta) return;
+    pathZones.add(r.zone);
+    (r.eta.path || []).forEach((s) => pathZones.add(s.to));
+  });
+
+  // Yerlesim: en uzak solda, TC sagda
+  const COL = 168, ROW = 62, W = 116, H = 38, PAD = 14;
+  const byCol = {};
+  zones.forEach((z) => { (byCol[dist[z]] ||= []).push(z); });
+  Object.values(byCol).forEach((list) => list.sort((a, b) => a.localeCompare(b, "tr")));
+
+  const pos = {};
+  Object.entries(byCol).forEach(([d, list]) => {
+    list.forEach((z, i) => {
+      pos[z] = { x: PAD + (maxDist - Number(d)) * COL, y: PAD + i * ROW };
+    });
+  });
+
+  const rows = Math.max(...Object.values(byCol).map((l) => l.length));
+  const width = PAD * 2 + maxDist * COL + W;
+  const height = PAD * 2 + (rows - 1) * ROW + H;
+
+  // Baglantilar once cizilir ki dugumlerin altinda kalsin
+  const links = model.edges.map((e) => {
+    const a = pos[e.from], b = pos[e.to];
+    if (!a || !b) return "";
+    const onPath = pathZones.has(e.from) && pathZones.has(e.to);
+    const x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x, y2 = b.y + H / 2;
+    const mx = (x1 + x2) / 2;
+    const d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+    const cost = edgeCost(e);
+    return `<path class="link ${onPath ? "onpath" : ""}" d="${d}"/>
+      <text class="cost ${onPath ? "onpath" : ""}" x="${mx}" y="${(y1 + y2) / 2 - 5}"
+        text-anchor="middle">${cost} C4</text>`;
+  }).join("");
+
+  const nodes = zones.map((z) => {
+    const p = pos[z];
+    const classes = [
+      z === model.target ? "target" : "",
+      activeZones.has(z) ? "active" : "",
+      !activeZones.has(z) && pathZones.has(z) ? "onpath" : "",
+    ].filter(Boolean).join(" ");
+    const raid = raids.find((r) => r.zone === z);
+    const meta = z === model.target ? "tool cupboard"
+      : (raid ? `${raid.threat} · ${raid.trigger_count} tetikleme` : `${dist[z]} bölge uzakta`);
+    return `<rect class="node ${classes}" x="${p.x}" y="${p.y}" width="${W}" height="${H}" rx="3"/>
+      <text class="zname" x="${p.x + 10}" y="${p.y + 17}">${esc(z)}</text>
+      <text class="zmeta" x="${p.x + 10}" y="${p.y + 30}">${esc(meta)}</text>`;
+  }).join("");
+
+  return `<div class="map">
+    <svg viewBox="0 0 ${width} ${height}" role="img"
+      aria-label="Üs haritası: bölgeler ve aralarındaki engeller, tool cupboard sağda.">
+      ${links}${nodes}
+    </svg>
+    <div class="map-legend">
+      <span><span class="sw" style="background:var(--sulfur)"></span><b>tool cupboard</b></span>
+      <span><span class="sw" style="background:var(--oxide)"></span><b>saldırı altında</b></span>
+      <span><b>Sayılar: o engeli açmanın C4 maliyeti</b></span>
+    </div>
+  </div>`;
+}
+
 function renderBaseEditor() {
   const box = $("base-editor");
   if (!baseModel || !baseOptions) { box.innerHTML = `<div class="empty">Yükleniyor...</div>`; return; }
@@ -569,7 +684,7 @@ function renderBaseEditor() {
   const zones = zonesOf(baseModel);
   refreshZoneList();
 
-  box.innerHTML = `
+  box.innerHTML = baseMapSvg(baseModel) + `
     <div class="guide">
       <h4>Üs nasıl tanımlanır</h4>
       <p>Üssünü <strong>bölgeler ve aralarındaki engeller</strong> olarak çiziyorsun.
@@ -1099,6 +1214,8 @@ function connect() {
   source.addEventListener("state", (m) => {
     state = JSON.parse(m.data);
     renderRaids(); renderSystem();
+    // Us sekmesi acikken harita saldiriyi canli gostersin
+    if (!$("tab-base").hidden && baseModel) renderBaseEditor();
     setConn("up", state.running ? "canlı" : "durdu");
   });
   source.addEventListener("event", (m) => pushEvent(JSON.parse(m.data)));
