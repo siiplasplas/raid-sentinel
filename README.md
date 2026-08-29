@@ -1,322 +1,397 @@
 # Raid Sentinel
 
-Rust üssün raid yerken haber veren, kendi kendine barındırılan erken uyarı sistemi.
+Self-hosted raid alarm for Rust. It watches your base through the Rust+
+Companion API, decides whether an alarm is a real raid, and tells you how
+long you have before the raiders reach your tool cupboard — on Discord, on
+your phone via ntfy, and by actually calling you when it matters.
 
-**Durum: F1–F3 ve panel tamam.** Eşleştirme, FCM dinleyici, cihaz aboneliği, olay
-deposu, Discord/ntfy bildirimleri, tehdit skorlaması, telefon eskalasyon zinciri,
-TC'ye ETA hesabı ve canlı panel çalışıyor.
-
-Kamera modülü (F4) bilerek yapılmadı: CCTV Camera oyunda **craft edilemiyor**,
-sadece Locked Crate/Elite loot'undan çıkıyor. Herkesin bulunduramayacağı bir
-donanımın üstüne özellik kurmak doğru değil.
+> 🇹🇷 Türkçe: [README.tr.md](README.tr.md) · [DEPLOY.tr.md](DEPLOY.tr.md)
 
 ---
 
-## Ne yapıyor
+## Why this exists
 
-Oyun içine koyduğun Smart Alarm'lar tetiklendiğinde Rust+ üzerinden anında haber
-alıyorsun. Ham tetiklemeler doğrudan bildirilmiyor — bir raid sırasında saniyeler
-içinde onlarca tetikleme gelir. Bunun yerine olaylar bölgeye göre oturumlarda
-toplanıp üç anlamlı bildirime indirgeniyor: saldırı başladı, saldırı sürüyor,
-saldırı durdu.
+Rust+ can already push "your Smart Alarm went off" to your phone. That is
+not the hard part.
 
-## Kurulum
+The hard part is that **during a raid you get dozens of triggers in
+seconds**. Forwarding all of them makes the channel unreadable, and if each
+one rings your phone the bill is real money. Most people end up turning the
+alarm off.
+
+So the value is not in relaying alarms. It is in:
+
+1. **Filtering out false alarms** — a single motion trigger should not wake
+   you at 4am; a single C4 charge should.
+2. **Telling you how much time you have** — "someone is attacking" is not
+   actionable. "9 minutes to the tool cupboard" is.
+
+---
+
+## What it does
+
+- **Detects the explosive tier.** A Seismic Sensor outputs different power
+  for grenades / satchels / C4, but Rust+ only exposes on-off. A small
+  in-game circuit recovers the tier (see [In-game setup](#in-game-setup)).
+- **Groups triggers into raid sessions** per zone. Fifty explosions become
+  one alert, then periodic progress summaries.
+- **Scores the threat** and routes by score: Discord for low, ntfy for
+  medium, a phone call chain for high.
+- **Estimates time to the tool cupboard** from a graph of your base, using
+  the pace measured *during that raid* — not a hardcoded constant.
+- **Calls your team in order**, first person to answer stops the chain.
+  Voicemail does not count as an answer.
+- **Never claims what it did not observe.** If a tier was assigned by hand
+  rather than measured, the notification says so.
+
+---
+
+## Quick start
 
 ```bash
+git clone <repo> raid-sentinel && cd raid-sentinel
 python -m venv .venv
-.venv/Scripts/pip install -e .
+.venv/bin/pip install .          # Windows: .venv/Scripts/pip install .
+
+sentinel pair                    # one time — opens a browser, sign in with Steam
+sentinel run                     # leave running; panel at http://127.0.0.1:8787/
 ```
 
-Dosya düzenlemene gerek yok — **her şey panelden ayarlanıyor.** Eşleştirmeyi yapıp
-sistemi başlat, sonra tarayıcıdan yapılandır:
+Then, in game:
 
-```bash
-.venv/Scripts/sentinel pair
-.venv/Scripts/sentinel run
+1. `ESC → Rust+ → Pair with Server`
+2. Look at each Smart Alarm and press **Pair**
+
+Everything else — notification channels, base layout, team, thresholds — is
+configured from the panel. No file editing required.
+
+**Do not run this on your gaming PC.** When the PC is off — which is exactly
+when you get offline-raided — the system is off too. A €4/month VPS is
+enough. See [DEPLOY.tr.md](DEPLOY.tr.md) for Docker and systemd, including
+how to pair on a headless server.
+
+---
+
+## How the connection works
+
+There is no "connect" button in the panel, because you start the connection
+from inside the game. The program cannot prove it owns your Rust account —
+only the game can.
+
+**1 · Registration** (`sentinel pair`, once). The program registers itself
+with Google FCM as a fake Android device using the Rust+ app's Firebase
+identity, converts the FCM token to an Expo push token, opens the Facepunch
+login in your browser, and registers the resulting auth token with
+`companion-rust.facepunch.com`. From then on Facepunch believes there is one
+more Rust+ device on your account.
+
+**2 · Server pairing.** When you press *Pair with Server*, the game server
+asks Facepunch to push to your Steam ID. Facepunch → Google FCM → this
+program. The payload carries the server address, port, player id and a
+player token.
+
+**3 · Live connection.** With those, the program opens a WebSocket **directly
+to the game server** for entity subscriptions and health checks.
+
+```
+Game server ──► Facepunch ──► Google FCM ──► Sentinel      (pairing + alarms)
+Sentinel ──────────── WebSocket ───────────► Game server   (live data)
 ```
 
-Panel `http://127.0.0.1:8787/` adresinde. Ayarlar sekmesinden Discord webhook'unu,
-ntfy konusunu, telefon zincirini ve limitleri gir; kaydettiğinde **süreç yeniden
-başlamadan devreye girer**.
+Both connections are **outbound**. No static IP, no port forwarding, no open
+ports. Works behind NAT.
 
-İstersen `.env` de kullanabilirsin (`cp .env.example .env`) — ilk kurulumu
-dosyayla yapmak isteyenler için duruyor. Katman sırası:
+> Some hosts block the Rust+ app port. If the WebSocket cannot connect, turn
+> on *Settings → Connection → route through the Facepunch proxy*.
+
+---
+
+## In-game setup
+
+A Seismic Sensor emits **different power depending on what exploded**
+(1 = grenade/beancan, 2 = explosive ammo/satchel, 3 = C4/rocket). Rust+
+flattens this to on-off, losing the tier.
+
+You recover it with electricity: feed the sensor output through
+**Electrical Branches set to 1** into three separate Smart Alarms. Which
+alarms fire encodes the power level like a thermometer.
 
 ```
-kod varsayılanları  <  .env  <  panelden yapılan değişiklikler
+Seismic Sensor ──► Branch(1) ──┬──► Alarm "Garage S1"     every explosion
+                     │
+                     └ P−1 ──► Branch(1) ──┬──► Alarm "Garage S2"   P ≥ 2
+                                 │
+                                 └ P−2 ────────► Alarm "Garage S3"  P = 3
 ```
 
-Panelden yapılanlar `data/settings.json` içine yazılır. Bir ayarı varsayılana
-döndürürsen override silinir, yani `.env`'i sonradan değiştirmek yine işe yarar.
+Per zone you need:
 
-## Eşleştirme
+| Item | Qty | Cost | Workbench |
+|---|---|---|---|
+| Seismic Sensor | 1 | 3 HQM + 1 Tech Trash | 2 |
+| Smart Alarm | 3 | 9 HQM + 3 Tech Trash | 2 |
+| Electrical Branch | 2 | 150 metal frags | 1 |
+| Solar Panel + Small Battery | 1 + 1 | 10 HQM + 1 Tech Trash | 1 |
 
-Bir kereye mahsus:
+Total draw is 4 rW; one solar panel covers it. Feed the sensor **at least
+4 rW** — it cannot output a level it did not receive, so a starved sensor
+clamps tier 3 down to 1.
 
-```bash
-sentinel pair
-```
+**Keep the sensor range at 10–15 m.** At 30 m your neighbour's raid wakes
+you up.
 
-Tarayıcı açılır, Steam ile giriş yaparsın. Bu adım Facepunch'ın giriş sayfasına
-bağlı ve açılır pencere gerektiriyor — engelleyici açıksa kapat.
+### Naming
 
-Sonra sistemi başlat ve açık bırak:
+The name you give a device in game is the configuration:
 
-```bash
-sentinel run
-```
-
-Oyunda sunucuya gir, `ESC → Rust+ → Pair with Server` yap. Ardından her Smart
-Alarm'a bakıp `Pair` de. Eşleştirdiğin her cihaz otomatik kaydedilir ve izlemeye
-alınır.
-
-## Cihaz adlandırması
-
-Sistemin tek yapılandırma arayüzü, cihaza oyun içinde verdiğin ad. Ayrı bir panel
-doldurmuyorsun:
-
-| Oyun içi ad | Bölge | Sismik kademe |
+| In-game name | Zone | Tier |
 |---|---|---|
-| `Garaj S3` | Garaj | 3 — C4/roket |
-| `Airlock S2` | Airlock | 2 — satchel/patlayıcı mermi |
-| `Cati S1` | Cati | 1 — el bombası/beancan |
-| `Cati HBHF` | Cati HBHF | yok |
+| `Garage S3` | Garage | 3 — C4 / rocket |
+| `Airlock S2` | Airlock | 2 — satchel |
+| `Roof` | Roof | none |
 
-Ayırıcı olarak boşluk, `_` veya `-` kullanabilirsin.
+Separator can be a space, `_` or `-`. Devices that do not follow the
+convention can be assigned a zone and tier from the panel instead.
 
-### Sismik kademe neden önemli
+**Zone names must match your base definition exactly.** `garage` and
+`Garage` are different zones; a mismatch silently disables the ETA. The
+panel's *Setup* tab flags this.
 
-Sismik Sensör, algıladığı patlamanın türüne göre farklı **güç** üretiyor
-(1 = el bombası/beancan, 2 = patlayıcı mermi/satchel, 3 = C4/roket). Rust+ bu
-sayıyı vermiyor, sadece açık/kapalı görüyor.
+### Sensor type matters
 
-Kademeyi oyun içi devreyle geri kazanıyorsun: sensör çıkışını **1'e ayarlı seri
-Electrical Branch**'lerden geçirip üç ayrı Smart Alarm'a bağla. Hangi alarmların
-yandığı güç seviyesini termometre gibi kodlar:
+Mark each device as **Seismic** (sees explosions) or **HBHF** (sees people)
+in the panel. The notification wording follows: an HBHF trigger reports
+"movement detected", never "C4 detonation" — even if you assigned tier 3 to
+it by hand. A system that claims what it did not observe is worse than one
+that says less.
 
-```
-Sismik Sensör ──> Branch(1) ──┬─> Alarm "Garaj S1"   (her patlamada)
-                   │           │
-                   └ P-1 ──> Branch(1) ──┬─> Alarm "Garaj S2"   (P>=2)
-                               │          │
-                               └ P-2 ─────┴─> Alarm "Garaj S3"  (P=3)
-```
+---
 
-Böylece hangi patlayıcıyla vurulduğunu biliyorsun — harcadıkları sülfür tahmini
-ve ileride ETA hesabı buna dayanacak.
+## Threat scoring
 
-## Tehdit skorlaması ve telefon
+Every trigger is scored, and the score decides both the notification
+severity and whether the phone rings.
 
-Her tetikleme puanlanır ve puana göre kanal seçilir. Amaç iki yönlü: gece 4'te
-boşuna uyanmamak, ve telefon faturasını kontrol altında tutmak.
-
-| Kanıt | Puan |
+| Evidence | Points |
 |---|---|
-| C4/roket kademesinde patlama | +60 |
-| Satchel/patlayıcı mermi kademesi | +40 |
-| Hafif patlayıcı (el bombası/beancan) | +15 |
-| İki veya daha fazla ayrı sensör | +25 |
-| 3+ tetikleme | +15 |
-| 90 saniyeden uzun süredir devam | +15 |
-| Takım arkadaşı bölgeye yakın | −30 |
+| C4 / rocket tier explosion | +60 |
+| Satchel / explosive ammo tier | +40 |
+| Light explosive (grenade, beancan) | +15 |
+| Two or more distinct sensors | +25 |
+| Three or more triggers | +15 |
+| Sustained for 90+ seconds | +15 |
+| Teammate near the zone | −30 |
 
-Eşikler: **YÜKSEK** 60+, **ORTA** 35+, **DÜŞÜK** 15+.
+Thresholds: **HIGH** 60+, **MEDIUM** 35+, **LOW** 15+.
 
-Pratikte: tek bir C4 patlaması anında YÜKSEK olur — kimse kendi üssünü C4'lemez,
-ikinci kanıta gerek yok. Tek bir HBHF tetiklemesi ise hiçbir şey yapmaz; yanından
-geçen biri telefonu çaldırmamalı.
+In practice a single C4 detonation is immediately HIGH — nobody C4s their
+own base, so no second signal is needed. A single motion trigger scores 10
+and notifies nobody.
 
-Takım arkadaşı cezası **yalnızca patlayıcı kanıtı yokken** uygulanır. Bu ceza HBHF
-sensörlerinin ürettiği sahte alarmı elemek için var; sismik sensör patlama
-görmüşse o kanıt tartışılmaz.
+The teammate penalty applies **only when there is no explosive evidence**.
+It exists to suppress HBHF false positives; if a seismic sensor saw an
+explosion, that evidence is not negotiable.
 
-### Eskalasyon zinciri
+---
 
-YÜKSEK tehditte kişiler sırayla aranır, **ilk cevap veren zinciri durdurur**.
-Telesekretere düşen arama cevap sayılmaz (`MachineDetection`), yoksa telefonun
-sesli mesaja düşmesi zinciri yanlışlıkla kapatırdı.
+## ETA
 
-Üç emniyet supabı var ve üçü de bilerek "arama yapmama" yönünde hata yapar:
+Define your base as zones and the obstacles between them (panel → *Base*
+tab, visual editor with a live topology map). The system finds the
+**cheapest path** to the tool cupboard and converts it to time:
 
-- **Aylık bütçe tavanı** — Türkiye mobiline dakikası ~0,29 USD. Tavan dolduğunda
-  arama durur, Discord ve ntfy çalışmaya devam eder.
-- **Bölge bekleme süresi** — aynı raid için tekrar tekrar aranmazsın.
-- **Sessiz saatler** — gece yalnızca YÜKSEK tehdit telefon çaldırır.
+```
+ETA = remaining explosives × measured trigger interval + zone transit time
+```
 
-Arama, TwiML'i istek içinde gönderiyor. Bu sayede **makinenin internetten
-erişilebilir olması gerekmiyor** — NAT arkasındaki bir VPS'te sorunsuz çalışır.
-Sonuç webhook yerine arama kaydı yoklanarak öğreniliyor.
+The pace is **measured during the raid**, not assumed — there is no reliable
+published figure for "seconds per wall". Early on confidence is *low*; it
+narrows as measurements accumulate.
 
-> **Türkçe seslendirme doğrulanmadı.** Twilio'nun desteklenen ses tablosunda
-> `tr-TR` görünmüyor. AWS Polly'de Filiz ve Burcu var ama Twilio'nun bunları
-> yayınlayıp yayınlamadığı belirsiz. `sentinel test-call` ile bunu bir raid
-> beklemeden dene; ses gelmezse `.env` içinde `TWILIO_LANGUAGE=en-US` ve
-> `TWILIO_VOICE=Polly.Joanna` yap.
+Uncertainty is shown as a band rather than hidden: tier 3 could be C4 or a
+rocket, and those need different counts per wall.
 
-## Üs modeli ve ETA
+**The ETA stays silent when it does not know**: no base definition, unknown
+zone, unknown explosive tier, or not enough measurements. A made-up "3
+minutes" gets someone raided.
 
-`data/base.json` dosyasına üssün kaba haritasını yazarsan sistem "TC'ye ne kadar
-kaldı" hesaplayabilir. En kolayı panelin **Üs** sekmesi — örnek şablon hazır
-gelir, düzenleyip kaydedersin. Terminalden doğrulamak için:
+---
+
+## The panel
+
+Served at `http://127.0.0.1:8787/` while `sentinel run` is active. Single
+HTML file, no build step, no external assets — it works on a VPS with no
+internet access to anything but the APIs it needs.
+
+| Tab | What it does |
+|---|---|
+| *(top)* | Active raids: threat, live countdown, remaining path, why the alarm fired, and **"I've got this"** to silence the call chain |
+| **Events** | Live feed with severity filter and text search |
+| **Devices** | Paired devices; assign zone, tier and sensor type; **test trigger** pushes a synthetic event through the real pipeline |
+| **Base** | Visual topology map + connection editor with live cost preview |
+| **Archive** | Past raid sessions and analytics — false-alarm rate per zone, triggers per device, monthly call spend |
+| **Team** | One connection, many people (see below) |
+| **Settings** | Channels, Twilio, thresholds, limits — applied without restarting |
+| **Setup** | Live checklist + in-game guide |
+| **System** | FCM silence, connection state, reconnects, spend |
+
+`/health` returns **503** when the system is unhealthy — point an uptime
+monitor at it, because the way alarm systems fail is silently.
+
+### One connection, many people
+
+Rust+ pairing stays on a single account. Every teammate pairing separately
+would be pointless work repeated every wipe. The system feeds from one
+connection and fans out:
+
+- **Discord** — one channel for everyone; members with a Discord ID get
+  mentioned on critical events
+- **ntfy** — everyone subscribes to the same topic
+- **Phone** — called in the order listed, first answer stops the chain
+
+Members can be deactivated without deleting them.
+
+---
+
+## Phone calls
+
+Configure Twilio in *Settings*, add people in *Team*, then use
+**"Test the phone"** before trusting it.
+
+The call says, twice (whoever just picked up missed the first pass):
+
+> *"Attention. Garage zone is under attack. Three triggers, C4 tier
+> detonation, ongoing for two minutes. Estimated six minutes to the tool
+> cupboard."*
+
+TwiML is sent inline with the request, so **the machine does not need to be
+reachable from the internet** — no inbound webhook. The result is learned by
+polling the call record.
+
+### Cost (Turkey mobile, verified against Twilio's own pricing)
+
+**Unanswered calls are free.** Only calls that reach `completed` are billed;
+ringing time on a call nobody picks up costs nothing.
+
+| Item | Cost |
+|---|---|
+| Per minute | $0.2875 — **rounded up**, a 20-second call bills a full minute |
+| Answering machine detection | $0.0075 per call (this system uses it) |
+| Text to speech (Polly) | $0.0008 per 100 characters |
+| Number rental | $1.15/month, charged up front, not prorated |
+
+**Real cost per call ≈ $0.30.** The system reads the actual price Twilio
+reports rather than estimating, and enforces a monthly cap.
+
+> **Voicemail costs money and does not stop the chain.** Twilio counts it as
+> answered and bills it; this system correctly does not, and moves to the
+> next person. Turn voicemail off on the numbers in the chain.
+
+> Turkish text-to-speech is **not confirmed** — `tr-TR` does not appear in
+> Twilio's supported voice table. Test it; if there is no audio, switch to
+> `en-US` + `Polly.Joanna` in Settings.
+
+Trial accounts: verified numbers only, 10-minute cap, 5 concurrent calls,
+and Twilio prepends its own spoken notice before your message.
+
+---
+
+## Reliability
+
+Alarm systems fail silently — everything looks fine and nothing arrives.
+Three defences, all found necessary in live testing:
+
+- **Active liveness probe.** Every 4 minutes the system pushes a
+  notification *to itself* and confirms it arrives. This connection has no
+  heartbeat, so silence proves nothing; the probe produces evidence instead
+  of waiting for it. If it fails, the listener is rebuilt.
+- **Reconnect and resubscribe.** The underlying library does neither. It
+  also leaks server-side subscriber slots on restart, which eventually
+  returns `too_many_subscribers` and kills the event flow entirely — so
+  subscriptions are checked before creating and released on shutdown.
+- **Health endpoint.** `/health` reports 503 when FCM is silent or the
+  WebSocket is down.
+
+---
+
+## Honest limitations
+
+- **It does not stop a raid.** It buys you information and maybe a few
+  minutes. If you cannot get back to defend, its value is low.
+- **It cannot see melee raids.** A seismic sensor only detects explosions;
+  someone picking through the soft side of a stone wall is invisible.
+- **If the sensors lose power, the system goes blind.** You see the first
+  breach and possibly nothing after.
+- **Tier and zone must come from the same alarm.** You cannot run one global
+  thermometer and cheap per-zone alarms; each zone needs its own trio.
+- **The Companion API is unofficial.** No known bans, no guarantees.
+- **The ETA is only as good as your base definition.** Upgrade your walls
+  and forget to update it, and it will lie to you.
+- **Rebuild cost repeats every wipe.** This is the real recurring price, and
+  no amount of code removes it.
+
+---
+
+## Commands
 
 ```bash
-.venv/Scripts/sentinel base
+sentinel pair           # Rust+ pairing (once)
+sentinel run            # run the system
+sentinel doctor         # check configuration
+sentinel base           # validate the base definition and show paths
+sentinel test-notify    # send a sample alert to configured channels
+sentinel test-call      # place a real phone call
 ```
 
-Bölge adları, oyun içi cihaz adlarındaki bölge adlarıyla **aynı olmalı** —
-`Garaj S3` adlı alarm, üs tanımındaki `Garaj` bölgesine bağlanır.
-
-Her bağlantı iki bölgeyi ayıran engelleri listeler. Raider'ın izleyeceği yol,
-saldırdığı bölgeden TC'ye giden **en ucuz** yol (Dijkstra).
-
-```
-ETA = kalan_patlayıcı × tetikleme_aralığı + bölge_geçiş_süresi
-```
-
-Hız sabit bir katsayı değil, o anki raidden **ölçülüyor**. İlk ölçümlerde güven
-"düşük", ölçüm biriktikçe daralıyor:
-
-```
- patlama  bolge       kalan      ETA           bant  guven
-       2  Kompound       13     5.6d    2.5-10.3 d  dusuk
-       3  Kompound       13     5.6d    4.2-6.9  d  orta
-       6  Kompound       13     5.6d    4.2-6.9  d  iyi
-       -- garaji gectiler, Airlock sensoru tetikleniyor --
-       4  Airlock         3     1.4d    0.8-2.1  d  orta
-```
-
-Belirsizlik gizlenmiyor, bant olarak veriliyor: 3. kademe hem C4 hem roket
-olabilir ve ikisinin duvar başına adedi farklı — o fark bandın içinde.
-
-### ETA ne zaman hesaplanmaz
-
-Uydurma bir sayı vermektense hiç vermemeyi tercih ediyor. Şu durumlarda sessiz
-kalır: üs tanımı yok, bölge tanımda yok, sismik kademe bilinmiyor (patlayıcı tipi
-olmadan hız patlayıcıya çevrilemez), veya hız ölçecek kadar veri yok.
-
-### Bilinen sınır
-
-Aynı bölgede kalan patlayıcı sayısı, o bölgeden çıkan engelin maliyetiyle
-sınırlanıyor. Yani ETA bölge içinde sabit kalır ve ancak bir sonraki bölgenin
-sensörü tetiklendiğinde düşer — basamaklı bir geri sayım. Sensörlerin verdiği
-bilgiyle daha iyisi yapılamıyor; olduğundan iyi göstermektense böyle bırakıldı.
-
-## Komutlar
+## Development
 
 ```bash
-sentinel base           # Üs tanımını doğrula ve yolları göster
-sentinel pair           # Rust+ eşleştirmesi (bir kez)
-sentinel run            # Sistemi çalıştır
-sentinel doctor         # Yapılandırmayı kontrol et
-sentinel test-notify    # Bildirim kanallarını dene
-sentinel test-call      # Gerçek bir telefon araması dene
+.venv/bin/pip install -e ".[dev]"
+python -m pytest -q
+python -m ruff check src/ tests/
+python scripts/demo_panel.py    # panel with fake data, no Rust+ needed
 ```
 
-## Panel
+167 tests. See [TESTING.md](TESTING.md) for the four-level test plan,
+including live in-game scenarios.
 
-`sentinel run` çalışırken `http://127.0.0.1:8787/` adresinde canlı bir olay
-müdahale konsolu var:
+## Data
 
-- **Aktif saldırılar** — bölge, tehdit seviyesi, TC'ye işleyen geri sayım, güven
-  bandı, kalan yol merdiveni ve "neden alarm verdim" gerekçeleri
-- **Olaylar** — canlı akan olay listesi
-- **Cihazlar** — eşleştirilmiş cihazlar. Her birine bölge ve sismik kademe
-  atayabilir, kaydı silebilir, **test tetiklemesi** gönderebilirsin. Test
-  tetiklemesi ayrı bir yol değil: toplayıcı, puanlama ve bildirim kanalları
-  dahil gerçek boru hattından geçer, yani raid beklemeden tüm zinciri
-  doğrulayabilirsin.
-- **Üs** — görsel editör. Bağlantı ekle, iki ucuna bölge yaz, engelleri açılır
-  listeden seç (her seçeneğin C4 maliyeti yanında yazılı), hedef bölgeyi belirle.
-  Maliyet anlık hesaplanır, kaydederken doğrulanır ve devreye girer. Elle
-  düzenlemek isteyenler için JSON görünümü de var.
-- **Ayarlar** — bildirim kanalları, telefon zinciri, eşikler ve limitler; ayrıca
-  "Bildirimleri dene" ve "Telefonu dene" düğmeleri
-- **Kurulum** — canlı kontrol listesi ve oyun içi rehber: malzeme listesi, devre
-  şeması, adlandırma kuralı, eşleştirme adımları
-- **Sistem** — FCM sessizliği, bağlantı durumu, yeniden bağlanma sayısı, aylık
-  harcama
+Everything lives in `data/`, and it is the only directory worth backing up:
 
-### Cihazlar nasıl eklenir
+| File | Contents | If lost |
+|---|---|---|
+| `rustplus.config.json` | FCM credentials, paired server | Re-pair |
+| `sentinel.db` | Event history, devices | History and zone assignments gone |
+| `settings.json` | Panel settings | Re-enter |
+| `base.json` | Base definition | ETA stops until redrawn |
+| `team.json` | Team members | Re-enter |
 
-Panelden eklenmez — **oyun içinden eşleştirilir**. Rust+ yalnızca oyunda `Pair`
-dediğin cihazları programa tanıtır. Program açıkken oyunda eşleştirdiğin cihaz
-saniyeler içinde listede belirir. Bu akış panelin Cihazlar ve Kurulum
-sekmelerinde adım adım anlatılıyor.
+`rustplus.config.json` contains a token derived from your Steam session —
+do not share backups.
 
-### Sessiz yanlış yapılandırma uyarısı
+## Security
 
-Cihaz adındaki bölge ile üs tanımındaki düğüm adı birebir tutmazsa alarm çalışır
-ama **ETA sessizce kaybolur**. Kurulum sekmesi bunu yakalar ve uyuşmayan bölgeleri
-listeler; ilgili cihaz kartında da "üs tanımında yok" rozeti çıkar.
-
-Sırlar (webhook adresi, token'lar) panele **asla açık gönderilmiyor** — yalnızca
-"tanımlı ···1234" biçiminde. Boş bıraktığın sır alanı değişmez; silmek için `-`
-yaz.
-
-Panel tek bir HTML dosyası; derleme adımı, `node_modules` ve dış kaynak yok
-(bir test bunu doğruluyor — internetsiz bir VPS'te de açılır). Veri tek bir SSE
-bağlantısından geliyor: olaylar oluştukları anda, durum birkaç saniyede bir. Geri
-sayım tarayıcıda işliyor, sunucudan saniye saniye veri beklenmiyor.
-
-Kritik olayda sesli uyarı için sağ üstteki **ses** düğmesini aç.
-
-Arayüzü Rust+ eşleştirmesi olmadan görmek için:
+The panel has **no authentication by default** and binds to `127.0.0.1`.
+Reach it over an SSH tunnel:
 
 ```bash
-.venv/Scripts/python scripts/demo_panel.py
+ssh -L 8787:localhost:8787 user@server
 ```
 
-### Uçlar
+If you must expose it, set `PANEL_TOKEN` in Settings and put a reverse proxy
+with TLS in front. Twilio credentials can be changed from the panel, so an
+open panel is a money-spending surface.
 
-`/health` dış izleme servisleri (dead-man switch) için: sistem sağlıksızsa **503**
-döner, böylece sessizce öldüğünde haberin olur. Ayrıca `/api/state`, `/api/events`,
-`/api/entities`, `/api/raids`, `/api/base` ve `/api/stream` (SSE).
+## Credits
 
-Varsayılan olarak yalnızca yerel arayüze bağlanır — dışarı açacaksan önüne ters
-vekil ve kimlik doğrulama koy, burada oturum yönetimi yok.
+Built on [rustplus](https://github.com/olijeffers0n/rustplus) and
+[push_receiver](https://github.com/olijeffers0n/push_receiver). The Rust+
+protocol documentation in
+[rustplus.js](https://github.com/liamcottle/rustplus.js) was invaluable.
 
-## Sunucuya kurulum
-
-Docker veya systemd ile: **[DEPLOY.md](DEPLOY.md)**. Headless sunucuda
-eşleştirmenin nasıl yapılacağı da orada.
-
-Sisteme güvenmeden önce yapılacak testler: **[TESTING.md](TESTING.md)**.
-
-## Nerede çalıştırmalı
-
-**Ev bilgisayarında değil.** PC kapalıyken — yani tam offline raid anında —
-sistem de ölü olur. Küçük bir VPS yeter.
-
-## Sessiz arızaya karşı
-
-Bu tür sistemlerin en büyük katili, her şeyin çalışıyor görünüp hiçbir şeyin
-gelmemesi. Kullandığımız kütüphanenin iki bilinen açığı var ve ikisi de burada
-kapatıldı:
-
-- **Yeniden bağlanma yok.** `rustplus` bağlantı koptuğunda döngüden çıkıyor ve
-  bir daha denemiyor. Geri çekilmeli yeniden bağlanma, kopma sonrası abonelikleri
-  yenileme ve düzenli gerçek istekle sağlık kontrolü eklendi.
-- **FCM sessizce ölüyor** (olijeffers0n/rustplus#75). `PushReceiver` doğrudan
-  kullanılıyor; `time_last_message_received` ile gerçek canlılık ölçülüyor.
-  90 dakika sessizlikte soket kapatılıp yeniden bağlanma zorlanıyor, 150 dakikada
-  dinleyici baştan kuruluyor.
-
-Ayrıca `/health` ucu, bağlantı sağlıksızsa 503 döner — dışarıdan bir izleme
-servisiyle (dead-man switch) bağlayabilirsin.
-
-## Testler
-
-```bash
-.venv/Scripts/python -m pytest -q
-.venv/Scripts/python -m ruff check src/
-```
-
-## Veri güncelliği
-
-`src/sentinel/raiddata.py` içindeki raid maliyet tabloları oyun sürümüne bağlı ve
-Facepunch bunları periyodik olarak yeniden dengeliyor. Doğrulama tarihi dosyanın
-başında yazılı. **rustlabs.com artık yok** (skin pazarına dönüştü) — oradan gelen
-hiçbir rakam kullanılmadı.
-
-Bilinen boşluk: Mayıs 2026'da gelen **Mortar** hiçbir tabloda yok, ve sismik
-sensörün onu hangi kademede algıladığı bilinmiyor.
+Game data (wall HP, explosive counts, sulfur costs) verified against
+wiki.facepunch.com and wikirust.com in August 2026. These values are
+version-dependent and Facepunch rebalances them; they live in
+`src/sentinel/raiddata.py` with a verification date, not scattered through
+the code.

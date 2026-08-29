@@ -1,7 +1,10 @@
 [project]
 name = "raid-sentinel"
 version = "0.1.0"
-description = "Rust ussu icin erken uyari ve raid ETA sistemi"
+description = "Self-hosted raid alarm and ETA estimator for Rust, via the Rust+ Companion API"
+readme = "README.md"
+license = { text = "MIT" }
+keywords = ["rust", "rustplus", "raid-alarm", "gaming", "self-hosted"]
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.9",

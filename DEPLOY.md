@@ -1,14 +1,15 @@
-# Sunucuya kurulum
+# Server install
 
-Raid Sentinel'i kendi sunucunda çalıştırmak için. İki yol var: Docker veya
-doğrudan systemd. İkisi de aynı sonucu verir, Docker daha az uğraş.
+Two paths: Docker or systemd. Same result, Docker is less work.
 
-> **Ev bilgisayarında çalıştırma.** PC kapalıyken — yani tam offline raid
-> anında — sistem de ölü olur. Küçük bir VPS yeter: 1 vCPU / 1 GB RAM fazlasıyla.
+> **Not on your gaming PC.** When the PC is off — exactly when you get
+> offline-raided — the system is off too. 1 vCPU / 1 GB RAM is plenty.
+
+> 🇹🇷 Türkçe: [DEPLOY.tr.md](DEPLOY.tr.md)
 
 ---
 
-## Yol A — Docker (önerilen)
+## Path A — Docker (recommended)
 
 ```bash
 git clone <repo> raid-sentinel && cd raid-sentinel
@@ -17,22 +18,20 @@ mkdir -p data
 docker compose up -d --build
 ```
 
-Panel `127.0.0.1:8787` üzerinde açılır. Sunucudan erişmek için kendi
-makinenden SSH tüneli kur:
+The panel binds to `127.0.0.1:8787` on the host. Reach it from your own
+machine over SSH:
 
 ```bash
-ssh -L 8787:localhost:8787 kullanici@sunucu
+ssh -L 8787:localhost:8787 user@server
 ```
 
-Sonra tarayıcında `http://localhost:8787/` aç.
-
-Logları izlemek için:
+Then open `http://localhost:8787/`.
 
 ```bash
 docker compose logs -f
 ```
 
-## Yol B — systemd (Docker'sız)
+## Path B — systemd
 
 ```bash
 sudo useradd --system --create-home --home-dir /opt/raid-sentinel sentinel
@@ -48,8 +47,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now raid-sentinel
 ```
 
-Durum ve log:
-
 ```bash
 systemctl status raid-sentinel
 journalctl -u raid-sentinel -f
@@ -57,122 +54,116 @@ journalctl -u raid-sentinel -f
 
 ---
 
-## Eşleştirme — headless sunucuda
+## Pairing on a headless server
 
-Eşleştirme akışı bir tarayıcı ve `localhost:3000` üzerinde bir geri dönüş
-sunucusu gerektiriyor. Sunucuda tarayıcı yok, o yüzden iki seçenek var.
+Pairing needs a browser and a callback server on `localhost:3000`. Your
+server has no browser, so pick one of these.
 
-### Seçenek 1 — Kendi bilgisayarında eşleştir, dosyayı kopyala *(en kolay)*
+### Option 1 — pair on your own machine, copy the file *(easiest)*
 
-Kendi makinende (tarayıcı var):
+On your desktop:
 
 ```bash
 pip install .
 sentinel pair
 ```
 
-Steam girişini tamamla, sonra oluşan dosyayı sunucuya kopyala:
+Complete the Steam sign-in, then copy the result to the server:
 
 ```bash
-scp data/rustplus.config.json kullanici@sunucu:/opt/raid-sentinel/data/
+scp data/rustplus.config.json user@server:/opt/raid-sentinel/data/
 ```
 
-Docker kullanıyorsan hedef `./data/rustplus.config.json`. Sonra servisi
-yeniden başlat.
+For Docker the target is `./data/rustplus.config.json`. Restart the service.
 
-### Seçenek 2 — SSH tüneliyle sunucuda eşleştir
+### Option 2 — SSH tunnel
 
-Kendi makinenden tünel aç:
+From your machine:
 
 ```bash
-ssh -L 3000:localhost:3000 kullanici@sunucu
+ssh -L 3000:localhost:3000 user@server
 ```
 
-Aynı SSH oturumunda:
+In that same session:
 
 ```bash
 cd /opt/raid-sentinel && .venv/bin/sentinel pair
 ```
 
-Komut bir adres yazdırır ama sunucuda tarayıcı açamaz. Kendi tarayıcında
-`http://localhost:3000/` aç, Steam girişini orada tamamla. Tünel token'ı
-sunucuya taşır.
+It prints a URL but cannot open a browser. Open `http://localhost:3000/` in
+**your** browser; the tunnel carries the token back.
 
-Docker'da bu yol daha karışık — tünel ana makinede biter, kapta değil. Kapta
-eşleştirmek istersen geri dönüş sunucusunu dışarı aç:
+Inside Docker the tunnel terminates on the host, not in the container, so
+publish the callback port and bind it wide:
 
 ```bash
 docker compose run --rm -p 127.0.0.1:3000:3000 sentinel \
   sentinel pair --host 0.0.0.0
 ```
 
-**Seçenek 1 daha az uğraştırır.** Eşleştirme bir kereye mahsus (wipe'a kadar).
+**Option 1 is less hassle.** Pairing is a one-time thing, until the wipe.
 
 ---
 
-## Kurulum sonrası
+## Each person pairs their own account
 
-1. Panele bağlan (SSH tüneli) → **Kurulum** sekmesi kontrol listesini gösterir.
-2. **Ayarlar** sekmesinden bildirim kanalını gir, "Bildirimleri dene" ile test et.
-3. Oyunda `ESC → Rust+ → Pair with Server`, sonra alarmlara `Pair`.
-4. **Üs** sekmesinden bölgeleri çiz.
-5. **Cihazlar** sekmesinde "Test tetikle" ile tüm zinciri doğrula.
+If a friend runs their own copy, they must run `sentinel pair` with **their
+own Steam account**. Credentials are tied to one Rust account and cannot be
+shared — a copied `rustplus.config.json` would deliver *your* alarms to
+*their* server.
 
-Ayrıntılı test senaryoları için [TESTING.md](TESTING.md).
+One instance can, however, notify many people: see the **Team** tab.
 
 ---
 
-## Yedekleme
+## After install
 
-Kaybedilmemesi gereken tek dizin `data/`:
+1. Open the panel (SSH tunnel) → **Setup** tab shows a live checklist
+2. **Settings** → add a notification channel → *"Test notifications"*
+3. In game: `ESC → Rust+ → Pair with Server`, then **Pair** each Smart Alarm
+4. **Base** → draw the zones
+5. **Devices** → *"Test trigger"* to verify the whole chain
 
-| Dosya | İçerik | Kaybedilirse |
-|---|---|---|
-| `rustplus.config.json` | FCM kimlikleri, eşleşmiş sunucu | Yeniden eşleştirme |
-| `sentinel.db` | Olay geçmişi, cihaz kayıtları | Geçmiş ve bölge atamaları gider |
-| `settings.json` | Panelden yapılan ayarlar | Ayarları yeniden gir |
-| `base.json` | Üs tanımı | ETA çalışmaz, yeniden çiz |
+Detailed test scenarios: [TESTING.md](TESTING.md).
+
+---
+
+## Backups
+
+Only `data/` matters:
 
 ```bash
 tar czf sentinel-backup-$(date +%F).tar.gz data/
 ```
 
-`rustplus.config.json` içinde Steam oturumundan türetilmiş token var —
-yedeği paylaşma.
+`rustplus.config.json` holds a token derived from your Steam session — do
+not share the archive.
 
----
+## External monitoring
 
-## Dış izleme (dead-man switch)
+`/health` returns **503** when unhealthy. Point an uptime service at it;
+silent death is how alarm systems fail. Since the panel is local-only,
+either run the monitor on the same host against
+`http://127.0.0.1:8787/health`, or expose just that path through an
+authenticated reverse proxy.
 
-`/health` ucu sistem sağlıksızsa **503** döner. Bir uptime servisine
-(Uptime Kuma, healthchecks.io, UptimeRobot) bağlarsan program sessizce
-öldüğünde haberin olur. Bu, alarm sistemlerinin en sık ölüm şekli.
-
-Panel yalnızca yerele bağlı olduğu için dış servis doğrudan erişemez. İki yol:
-
-- Uptime Kuma gibi bir aracı aynı sunucuda çalıştır, `http://127.0.0.1:8787/health` adresini izlet.
-- Ya da ters vekilde sadece `/health` yolunu dışarı aç (kimlik doğrulamalı).
-
-## Güncelleme
+## Updating
 
 ```bash
 git pull
-docker compose up -d --build          # Docker
-# veya
-sudo -u sentinel .venv/bin/pip install --upgrade .   # systemd
+docker compose up -d --build                          # Docker
+sudo -u sentinel .venv/bin/pip install --upgrade .    # systemd
 sudo systemctl restart raid-sentinel
 ```
 
-`data/` dokunulmaz. Veritabanı şeması gerekiyorsa açılışta kendini günceller.
+`data/` is untouched. Database migrations run on startup.
 
----
+## Security notes
 
-## Güvenlik notları
-
-- Panelde **oturum yönetimi yok.** Varsayılan olarak yalnızca `127.0.0.1`'e
-  bağlanır ve öyle kalmalı. Erişim için SSH tüneli kullan.
-- Dışarı açmak zorundaysan önüne ters vekil koy ve HTTP temel kimlik
-  doğrulaması ekle. Panelden Twilio token'ı ve webhook adresleri
-  değiştirilebiliyor — açık bırakılan bir panel bunları ele geçirir.
-- `data/` dizini `700`, içindeki dosyalar servis kullanıcısına ait olmalı.
-- Docker imajı kök olmayan kullanıcıyla çalışıyor (`uid 10001`).
+- The panel has **no session management**. It binds to `127.0.0.1` by
+  default and should stay that way; use an SSH tunnel.
+- If you must expose it, set `PANEL_TOKEN` in Settings *and* put an
+  authenticated reverse proxy in front. Twilio credentials and webhooks are
+  editable from the panel.
+- Keep `data/` at `700`, owned by the service user.
+- The Docker image runs as a non-root user (`uid 10001`).

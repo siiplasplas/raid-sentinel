@@ -213,8 +213,9 @@ Panel arayüzünü Rust+ olmadan görmek için: `python scripts/demo_panel.py`
 
 ## Belgeler
 
-- `README.md` — ne yapar, nasıl kurulur, adlandırma, puanlama, ETA
-- `DEPLOY.md` — Docker/systemd, headless eşleştirme, yedekleme, güvenlik
+- `README.md` / `README.tr.md` — ne yapar, kurulum, adlandırma, puanlama, ETA
+- `DEPLOY.md` / `DEPLOY.tr.md` — Docker/systemd, headless eşleştirme, yedekleme
+- İngilizce sürümler GitHub için birincil; Türkçeler `.tr.md` olarak duruyor
 - `TESTING.md` — dört seviyeli test planı, saha senaryoları
 - Kullanım kılavuzu (Artifact): kurulum, bağlantı mekanizması, devre
   şeması, telefon maliyetleri
