@@ -27,6 +27,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 from sentinel.base_model import BaseGraph, BaseModelError, base_path
 from sentinel.escalation import Contact
+from sentinel.i18n import Lang, language, t
 from sentinel.models import Event, EventKind, SensorKind, Severity
 from sentinel.notify import sample_raid_event
 from sentinel.raiddata import DEPLOYABLE_COST, WALL_COST, Tier, WeaponClass
@@ -41,28 +42,70 @@ log = logging.getLogger(__name__)
 
 STATIC_DIR = Path(__file__).parent / "web"
 EXAMPLE_BASE = Path(__file__).parent / "base.example.json"
+EXAMPLE_BASE_EN = Path(__file__).parent / "base.example.en.json"
+
+
+def example_base_path() -> Path:
+    """Ornek us tanimini panelin dilinde ver.
+
+    Bolge adlari sablonda gorunur ve kullanici bunlari oyundaki cihaz
+    adlarina birebir kopyalar - Turkce bir sablon Ingilizce kurulumda
+    ise yaramaz.
+    """
+    if language() is Lang.EN and EXAMPLE_BASE_EN.exists():
+        return EXAMPLE_BASE_EN
+    return EXAMPLE_BASE
 
 # Panelde gorunecek okunabilir adlar. Anahtarlar raid maliyet tablosundan.
-_TIER_LABELS: dict[Tier, str] = {
-    Tier.TWIG: "Çıta (twig)",
-    Tier.WOOD: "Ahşap",
-    Tier.STONE: "Taş",
-    Tier.METAL: "Sac",
-    Tier.ARMORED: "Zırhlı",
+# Oyun ici terimler (twig, ladder hatch, embrasure) ceviriden muaf: Rust'in
+# arayuzu her dilde Ingilizce ve kullanici onlari o adla ariyor.
+_TIER_LABELS: dict[str, dict[Tier, str]] = {
+    "tr": {
+        Tier.TWIG: "Çıta (twig)",
+        Tier.WOOD: "Ahşap",
+        Tier.STONE: "Taş",
+        Tier.METAL: "Sac",
+        Tier.ARMORED: "Zırhlı",
+    },
+    "en": {
+        Tier.TWIG: "Twig",
+        Tier.WOOD: "Wood",
+        Tier.STONE: "Stone",
+        Tier.METAL: "Sheet metal",
+        Tier.ARMORED: "Armored",
+    },
 }
 
-_DEPLOYABLE_LABELS: dict[str, str] = {
-    "wooden_door": "Ahşap kapı",
-    "sheet_metal_door": "Sac kapı",
-    "garage_door": "Garaj kapısı",
-    "armored_door": "Zırhlı kapı",
-    "ladder_hatch": "Ladder hatch",
-    "high_stone_wall": "Yüksek taş duvar",
-    "high_wood_wall": "Yüksek ahşap duvar",
-    "metal_embrasure": "Metal embrasure",
-    "window_bars": "Pencere demiri",
-    "auto_turret": "Auto turret",
+_DEPLOYABLE_LABELS: dict[str, dict[str, str]] = {
+    "tr": {
+        "wooden_door": "Ahşap kapı",
+        "sheet_metal_door": "Sac kapı",
+        "garage_door": "Garaj kapısı",
+        "armored_door": "Zırhlı kapı",
+        "ladder_hatch": "Ladder hatch",
+        "high_stone_wall": "Yüksek taş duvar",
+        "high_wood_wall": "Yüksek ahşap duvar",
+        "metal_embrasure": "Metal embrasure",
+        "window_bars": "Pencere demiri",
+        "auto_turret": "Auto turret",
+    },
+    "en": {
+        "wooden_door": "Wooden door",
+        "sheet_metal_door": "Sheet metal door",
+        "garage_door": "Garage door",
+        "armored_door": "Armored door",
+        "ladder_hatch": "Ladder hatch",
+        "high_stone_wall": "High stone wall",
+        "high_wood_wall": "High wood wall",
+        "metal_embrasure": "Metal embrasure",
+        "window_bars": "Window bars",
+        "auto_turret": "Auto turret",
+    },
 }
+
+
+def _labels(table: dict[str, dict]) -> dict:
+    return table.get(str(language())) or table["tr"]
 
 # Durum kaç saniyede bir itilecek. Vekil sunucularin baglantiyi bosta
 # kesmemesi icin ayni zamanda canlilik sinyali gorevi goruyor.
@@ -440,7 +483,7 @@ def create_app(sentinel: Sentinel) -> FastAPI:
             Event(
                 kind=EventKind.RAID_ACKNOWLEDGED,
                 severity=Severity.WARN,
-                title=f"{zone or 'Tüm bölgeler'}: üstlenildi",
+                title=t("ack.done", zone=zone or t("ack.all")),
                 body=f"Telefon zinciri {minutes:.0f} dakika susturuldu.",
                 zone=zone,
             )
@@ -557,7 +600,8 @@ def create_app(sentinel: Sentinel) -> FastAPI:
 
         # Sablon pakete gomulu: kaynak agacina gore yol hesaplamak
         # pip/Docker kurulumunda yanlis yeri gosterirdi.
-        template = EXAMPLE_BASE.read_text(encoding="utf-8") if EXAMPLE_BASE.exists() else "{}"
+        example = example_base_path()
+        template = example.read_text(encoding="utf-8") if example.exists() else "{}"
         return {"exists": False, "text": template}
 
     @app.get("/api/base/options")
@@ -570,12 +614,12 @@ def create_app(sentinel: Sentinel) -> FastAPI:
         """
         return {
             "tiers": [
-                {"value": tier.value, "label": _TIER_LABELS.get(tier, tier.value),
+                {"value": tier.value, "label": _labels(_TIER_LABELS).get(tier, tier.value),
                  "cost_c4": WALL_COST[tier][WeaponClass.C4]}
                 for tier in WALL_COST
             ],
             "deployables": [
-                {"value": key, "label": _DEPLOYABLE_LABELS.get(key, key),
+                {"value": key, "label": _labels(_DEPLOYABLE_LABELS).get(key, key),
                  "cost_c4": costs.get(WeaponClass.C4, 0)}
                 for key, costs in DEPLOYABLE_COST.items()
             ],

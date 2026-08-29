@@ -11,7 +11,7 @@ your phone via ntfy, and by actually calling you when it matters.
 
 ## What it looks like
 
-[![Live view](docs/screenshots/01-live.png)](docs/screenshots/01-live.png)
+[![Live view](docs/screenshots/en/01-live.png)](docs/screenshots/en/01-live.png)
 
 **Live view.** The countdown is measured from the pace of *this* raid, not a
 constant, and the range under it is the uncertainty rather than a hidden
@@ -21,17 +21,17 @@ hand-assigned when it was never actually observed.
 
 |  |  |
 |:--|:--|
-| [<img src="docs/screenshots/02-base-map.png" alt="Base map">](docs/screenshots/02-base-map.png) | [<img src="docs/screenshots/03-devices.png" alt="Devices">](docs/screenshots/03-devices.png) |
+| [<img src="docs/screenshots/en/02-base-map.png" alt="Base map">](docs/screenshots/en/02-base-map.png) | [<img src="docs/screenshots/en/03-devices.png" alt="Devices">](docs/screenshots/en/03-devices.png) |
 | **Base** — your base as a graph. Red is the zone under attack, yellow is the cheapest path to the tool cupboard, and each number is the explosive cost of that obstacle. | **Devices** — devices are *not* added here; they are paired in game. This tab assigns zone, tier and sensor type, and can push a synthetic trigger through the real pipeline. |
-| [<img src="docs/screenshots/04-archive.png" alt="Archive">](docs/screenshots/04-archive.png) | [<img src="docs/screenshots/05-team.png" alt="Team">](docs/screenshots/05-team.png) |
+| [<img src="docs/screenshots/en/04-archive.png" alt="Archive">](docs/screenshots/en/04-archive.png) | [<img src="docs/screenshots/en/05-team.png" alt="Team">](docs/screenshots/en/05-team.png) |
 | **Archive** — past sessions, plus the number that decides whether you keep trusting the thing: false-alarm rate per zone. | **Team** — one Rust+ connection, many people notified. Nobody else has to install anything. |
-| [<img src="docs/screenshots/06-system.png" alt="System">](docs/screenshots/06-system.png) | [<img src="docs/screenshots/07-mobile.png" alt="Mobile">](docs/screenshots/07-mobile.png) |
+| [<img src="docs/screenshots/en/06-system.png" alt="System">](docs/screenshots/en/06-system.png) | [<img src="docs/screenshots/en/07-mobile.png" alt="Mobile">](docs/screenshots/en/07-mobile.png) |
 | **System** — how long the push socket has been silent, reconnect count, spend. An alarm system that dies quietly is worse than none. | **Mobile** — the same panel, which is where you will actually read it. |
 
-> The interface is **Turkish only** right now. Code, documentation, logs and
-> the API are English; the interface strings are not yet extracted for
-> translation. Everything is in one HTML file, so a translation is a
-> find-and-replace away.
+The panel, the notifications and the phone call speak **English or Turkish**,
+switched by the `TR`/`EN` button in the header or the `language` setting. One
+setting drives both surfaces — reading the same attack in English on the panel
+and in Turkish on Discord would be worse than either.
 
 ## Why this exists
 
@@ -353,8 +353,6 @@ Three defences, all found necessary in live testing:
   and forget to update it, and it will lie to you.
 - **Rebuild cost repeats every wipe.** This is the real recurring price, and
   no amount of code removes it.
-- **The panel is Turkish only.** Notifications and the panel speak Turkish;
-  the code, logs and API do not.
 
 ---
 
@@ -371,15 +369,16 @@ sentinel test-call      # place a real phone call
 
 ## Development
 
-The README screenshots are generated, not taken by hand — start the demo
-panel and run the capture script:
+The README screenshots are generated, not taken by hand. Start a demo panel
+in the language you want and run the capture script — it asks the panel which
+language it is in and writes into `docs/screenshots/<lang>/`:
 
 ```bash
-python scripts/demo_panel.py
+python scripts/demo_panel.py --lang en --port 8789
 ```
 
 ```bash
-python scripts/screenshots.py
+PANEL_URL=http://127.0.0.1:8789/ python scripts/screenshots.py
 ```
 
 ```bash

@@ -1,0 +1,57 @@
+{
+  "_comment": [
+    "A rough map of your base. Copy this to data/base.json and edit it to match.",
+    "Zone names must be IDENTICAL to the zone part of your in-game device names:",
+    "  a Smart Alarm called 'Garage S3' -> the 'Garage' zone here.",
+    "",
+    "Each edge lists the obstacles separating two zones.",
+    "  tier: twig | wood | stone | metal | armored   (wall/floor/ceiling)",
+    "  type: sheet_metal_door | garage_door | armored_door | wooden_door |",
+    "        ladder_hatch | high_stone_wall | high_wood_wall |",
+    "        metal_embrasure | window_bars | auto_turret",
+    "",
+    "'sentinel base' validates the definition and shows the path from each zone to TC."
+  ],
+
+  "name": "Main Base",
+  "target": "TC",
+
+  "edges": [
+    {
+      "from": "Outer",
+      "to": "Compound",
+      "obstacles": [{ "type": "high_stone_wall", "count": 1 }]
+    },
+    {
+      "from": "Compound",
+      "to": "Garage",
+      "obstacles": [{ "type": "garage_door", "count": 1 }]
+    },
+    {
+      "from": "Compound",
+      "to": "Corridor",
+      "obstacles": [
+        { "tier": "stone", "count": 1 },
+        { "type": "sheet_metal_door", "count": 1 }
+      ]
+    },
+    {
+      "from": "Garage",
+      "to": "Airlock",
+      "obstacles": [{ "tier": "metal", "count": 1 }]
+    },
+    {
+      "from": "Corridor",
+      "to": "Airlock",
+      "obstacles": [{ "type": "armored_door", "count": 1 }]
+    },
+    {
+      "from": "Airlock",
+      "to": "TC",
+      "obstacles": [
+        { "tier": "metal", "count": 1 },
+        { "type": "sheet_metal_door", "count": 1 }
+      ]
+    }
+  ]
+}

@@ -22,6 +22,7 @@ from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
+from sentinel.i18n import Lang, language, t
 from sentinel.models import Event, EventKind, SensorKind, Severity
 from sentinel.raiddata import SEISMIC_AVG_SULFUR, SeismicLevel
 
@@ -47,7 +48,7 @@ DetailResolver = Callable[["RaidSession"], str]
 # kanallari bunu okuyup zengin gosterim uretiyor.
 ContextResolver = Callable[["RaidSession"], dict[str, object]]
 
-DEFAULT_ZONE = "Bilinmeyen bölge"
+DEFAULT_ZONE = t("zone.unknown")
 
 _SWEEP_INTERVAL = 15.0
 
@@ -116,33 +117,37 @@ class RaidSession:
         return bool(self.kinds) and self.kinds == {str(SensorKind.PRESENCE)}
 
     def describe(self) -> str:
-        parts = [f"{self.trigger_count} tetikleme"]
+        parts = [t("desc.triggers", n=self.trigger_count)]
 
         level = self.heaviest_level
         if self.only_presence:
             # Hareket sensoru patlama gormez; kademe elle atanmış olsa bile
             # "C4 patladi" demek yanlis olur.
-            parts.append("hareket algılandı")
+            parts.append(t("desc.presence"))
         elif level is not None:
-            names = {
-                SeismicLevel.LIGHT: "el bombası/beancan",
-                SeismicLevel.MEDIUM: "satchel/patlayıcı mermi",
-                SeismicLevel.HEAVY: "C4/roket",
+            keys = {
+                SeismicLevel.LIGHT: "weapon.light",
+                SeismicLevel.MEDIUM: "weapon.medium",
+                SeismicLevel.HEAVY: "weapon.heavy",
             }
-            label = names[level]
+            label = t(keys[level])
             if str(SensorKind.EXPLOSION) not in self.kinds:
                 # Sismik oldugu doğrulanmadı - kademe kullanicinin beyani
-                label += " (kademe elle atanmış)"
-            parts.append(f"en ağır: {label}")
+                label += t("desc.manual")
+            parts.append(t("desc.heaviest", label=label))
 
         if self.duration >= 60:
-            parts.append(f"{self.duration / 60:.0f} dk süredir")
+            parts.append(t("desc.minutes", n=f"{self.duration / 60:.0f}"))
         elif self.duration >= 1:
-            parts.append(f"{self.duration:.0f} sn süredir")
+            parts.append(t("desc.seconds", n=f"{self.duration:.0f}"))
 
         sulfur = self.estimated_sulfur
         if sulfur:
-            parts.append(f"~{sulfur:,} sulfur".replace(",", "."))
+            # Turkce binlik ayraci nokta, Ingilizce virgul.
+            grouped = f"{sulfur:,}"
+            if language() is Lang.TR:
+                grouped = grouped.replace(",", ".")
+            parts.append(f"~{grouped} sulfur")
 
         return " · ".join(parts)
 
@@ -289,9 +294,9 @@ class RaidAggregator:
             Event(
                 kind=EventKind.RAID_STARTED,
                 severity=self._severity(session, Severity.CRITICAL),
-                title=f"{session.zone}: saldırı başladı",
+                title=t("raid.started", zone=session.zone),
                 body=self._body(
-                    session, ", ".join(sorted(session.entities)) or "Alarm tetiklendi"
+                    session, ", ".join(sorted(session.entities)) or t("raid.alarm")
                 ),
                 zone=session.zone,
                 entity_id=entity_id,
@@ -304,7 +309,7 @@ class RaidAggregator:
             Event(
                 kind=EventKind.RAID_PROGRESS,
                 severity=self._severity(session, Severity.WARN),
-                title=f"{session.zone}: saldırı sürüyor",
+                title=t("raid.progress", zone=session.zone),
                 body=self._body(session, session.describe()),
                 zone=session.zone,
                 raw={
@@ -322,7 +327,7 @@ class RaidAggregator:
             Event(
                 kind=EventKind.RAID_ENDED,
                 severity=Severity.INFO,
-                title=f"{session.zone}: saldırı durdu",
+                title=t("raid.ended", zone=session.zone),
                 body=session.describe(),
                 zone=session.zone,
                 raw={

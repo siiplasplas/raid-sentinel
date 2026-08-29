@@ -36,7 +36,7 @@ CHROME = (
 )
 PORT = 9333
 URL = os.environ.get("PANEL_URL", "http://127.0.0.1:8788/")
-OUT = pathlib.Path(__file__).resolve().parent.parent / "docs" / "screenshots"
+SHOTS_DIR = pathlib.Path(__file__).resolve().parent.parent / "docs" / "screenshots"
 PROFILE = pathlib.Path(tempfile.gettempdir()) / "sentinel-shot-profile"
 
 WIDTH = 1360
@@ -101,11 +101,22 @@ async def _attach(proc) -> str:
     raise SystemExit("Chrome DevTools'a baglanilamadi")
 
 
+def panel_language() -> str:
+    """Panelin dilini kendisine soruyoruz - goruntuler o dilin klasorune gider."""
+    try:
+        with urllib.request.urlopen(URL.rstrip("/") + "/api/state", timeout=5) as r:
+            return json.load(r).get("language") or "tr"
+    except Exception:
+        return "tr"
+
+
 async def main() -> None:
     if not pathlib.Path(CHROME).exists():
         raise SystemExit(f"Chrome bulunamadi: {CHROME}\nCHROME degiskeniyle yolu ver.")
 
-    OUT.mkdir(parents=True, exist_ok=True)
+    out = SHOTS_DIR / panel_language()
+    out.mkdir(parents=True, exist_ok=True)
+    print(f"  -> {out}")
     shutil.rmtree(PROFILE, ignore_errors=True)
 
     proc = subprocess.Popen(
@@ -143,13 +154,13 @@ async def main() -> None:
                 h = await c.send(
                     "Runtime.evaluate",
                     expression=(
-                        "Math.max(620, Math.min(2600, "
+                        "Math.max(620, Math.min(1900, "
                         "Math.ceil(document.documentElement.scrollHeight) + 24))"
                     ),
                 )
                 await c.viewport(int(h["result"]["value"]))
                 await asyncio.sleep(0.6)
-                await c.png(OUT / name)
+                await c.png(out / name)
 
             await c.viewport(896, mobile=True)
             await c.send(
@@ -157,7 +168,7 @@ async def main() -> None:
                 expression="document.querySelector('[data-tab=\"events\"]').click()",
             )
             await asyncio.sleep(1.5)
-            await c.png(OUT / "07-mobile.png")
+            await c.png(out / "07-mobile.png")
     finally:
         proc.terminate()
         try:

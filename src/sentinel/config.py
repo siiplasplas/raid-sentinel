@@ -79,6 +79,9 @@ class Settings(BaseSettings):
 
     # --- Sistem ------------------------------------------------------------
     db_path: Path = Path("data/sentinel.db")
+    # Panel, bildirim ve seslendirme dili. Loglar ve API bundan etkilenmez.
+    language: str = "tr"
+
     log_level: str = "INFO"
     http_host: str = "127.0.0.1"
     http_port: int = 8787

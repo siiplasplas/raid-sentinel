@@ -18,6 +18,7 @@ import time
 from dataclasses import dataclass, field
 from enum import IntEnum
 
+from sentinel.i18n import t
 from sentinel.models import SensorKind, Severity
 from sentinel.raid import RaidSession
 from sentinel.raiddata import SeismicLevel
@@ -37,10 +38,11 @@ THRESHOLD_MEDIUM = 35
 THRESHOLD_HIGH = 60
 
 # Sismik kademe puanlari
+# Gerekce metinleri i18n anahtari; dil ayardan geliyor.
 _LEVEL_SCORE: dict[SeismicLevel, tuple[int, str]] = {
-    SeismicLevel.HEAVY: (60, "C4/roket kademesinde patlama"),
-    SeismicLevel.MEDIUM: (40, "satchel/patlayıcı mermi kademesinde patlama"),
-    SeismicLevel.LIGHT: (15, "hafif patlayici (el bombası/beancan)"),
+    SeismicLevel.HEAVY: (60, "score.heavy"),
+    SeismicLevel.MEDIUM: (40, "score.medium"),
+    SeismicLevel.LIGHT: (15, "score.light"),
 }
 
 _BASELINE_SCORE = 10
@@ -56,7 +58,7 @@ class Assessment:
 
     @property
     def explanation(self) -> str:
-        return "; ".join(self.reasons) if self.reasons else "belirgin bir kanit yok"
+        return "; ".join(self.reasons) if self.reasons else t("score.none")
 
 
 def assess(
@@ -75,32 +77,32 @@ def assess(
 
     level = session.heaviest_level
     if level is not None:
-        points, reason = _LEVEL_SCORE[level]
+        points, reason_key = _LEVEL_SCORE[level]
         score += points
         # Gerekce, GORULEN seyi anlatmali. Hareket sensorune elle kademe
         # atanmis olabilir; o zaman "C4 patladi" demek yanlis olur.
         if session.only_presence:
-            reasons.append("hareket sensörü tetiklendi (kademe elle atanmış)")
+            reasons.append(t("score.presence"))
         elif str(SensorKind.EXPLOSION) not in session.kinds:
-            reasons.append(f"{reason} (kademe elle atanmış, doğrulanmadı)")
+            reasons.append(t("score.unverified", reason=t(reason_key)))
         else:
-            reasons.append(reason)
+            reasons.append(t(reason_key))
 
     distinct = len(session.entities)
     if distinct >= 2:
         score += 25
-        reasons.append(f"{distinct} ayrı sensör tetiklendi")
+        reasons.append(t("score.distinct", n=distinct))
 
     if session.trigger_count >= 3:
         score += 15
-        reasons.append(f"{session.trigger_count} tetikleme")
+        reasons.append(t("desc.triggers", n=session.trigger_count))
     if session.trigger_count >= 10:
         score += 10
 
     elapsed = max(0.0, moment - session.started_at)
     if elapsed >= _SUSTAINED_SECONDS and session.trigger_count >= 2:
         score += 15
-        reasons.append(f"{elapsed / 60:.0f} dakikadır sürüyor")
+        reasons.append(t("score.sustained", n=f"{elapsed / 60:.0f}"))
 
     # Takim arkadasi cezasi YALNIZCA patlayici kaniti yokken uygulanir.
     # Ceza, HBHF/hareket sensorlerinin urettigi sahte alarmi elemek icin var
@@ -109,7 +111,7 @@ def assess(
     # uygulamak, gercek bir raidi ORTA'ya dusurup telefonu susturur.
     if teammate_nearby and level is None:
         score -= _TEAMMATE_PENALTY
-        reasons.append("takım arkadaşı bölgeye yakın (puan düşürüldü)")
+        reasons.append(t("score.teammate"))
 
     score = max(0, score)
     return Assessment(level=_to_level(score), score=score, reasons=reasons)

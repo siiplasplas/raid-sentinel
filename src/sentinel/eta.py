@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 
 from sentinel.base_model import BaseGraph, PathStep
+from sentinel.i18n import t
 from sentinel.raid import RaidSession
 from sentinel.raiddata import SEISMIC_TO_WEAPONS, SeismicLevel, WeaponClass
 
@@ -42,9 +43,15 @@ _MIN_GAP_SECONDS = 2.0
 
 
 class Confidence(StrEnum):
-    LOW = "düşük"
-    MEDIUM = "orta"
-    GOOD = "iyi"
+    """Deger dilden bagimsiz bir tanimlayici; gosterilirken cevriliyor."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    GOOD = "good"
+
+    @property
+    def label(self) -> str:
+        return t(f"conf.{self.value}")
 
 
 @dataclass(slots=True)
@@ -64,11 +71,12 @@ class EtaEstimate:
 
     def format(self) -> str:
         """Bildirimde gorunecek tek satir."""
-        return (
-            f"TC'ye tahmini {_mmss(self.seconds)} "
-            f"(±{_mmss(max(0.0, self.high_seconds - self.seconds))}, "
-            f"güven: {self.confidence}) · "
-            f"{self.remaining_explosives} patlayıcı kaldı"
+        return t(
+            "eta.line",
+            eta=_mmss(self.seconds),
+            band=_mmss(max(0.0, self.high_seconds - self.seconds)),
+            conf=self.confidence.label,
+            n=self.remaining_explosives,
         )
 
 

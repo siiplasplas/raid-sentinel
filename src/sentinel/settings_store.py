@@ -27,7 +27,9 @@ log = logging.getLogger(__name__)
 
 SETTINGS_FILENAME = "settings.json"
 
-FieldType = Literal["text", "secret", "int", "float", "severity", "threat", "bool"]
+FieldType = Literal[
+    "text", "secret", "int", "float", "severity", "threat", "bool", "choice"
+]
 
 
 @dataclass(slots=True)
@@ -44,6 +46,11 @@ class FieldSpec:
 # Panelde gorunecek alanlar. Buraya eklenmeyen hicbir ayar disaridan
 # degistirilemez - yanlislikla db_path gibi bir seyin ezilmesini istemiyoruz.
 SETTINGS_SPEC: tuple[FieldSpec, ...] = (
+    # --- Genel ---
+    FieldSpec("language", "Dil / Language", "Genel", "choice",
+              "Panel, bildirim ve seslendirme dili",
+              choices=("tr", "en")),
+
     # --- Discord ---
     FieldSpec("discord_webhook_url", "Discord webhook adresi", "Bildirimler",
               "secret", "Kanal ayarlari > Entegrasyonlar > Webhook olustur"),
@@ -176,6 +183,13 @@ def _coerce(spec: FieldSpec, value: Any) -> Any:
     if value is None:
         return None
     text = str(value).strip()
+
+    if spec.type == "choice":
+        if text not in spec.choices:
+            raise SettingsError(
+                f"{spec.key}: gecerli degerler {', '.join(spec.choices)}"
+            )
+        return text
 
     if spec.type in ("text", "secret"):
         return text
@@ -325,6 +339,8 @@ def describe(settings: Settings) -> list[dict[str, Any]]:
         elif spec.type == "threat":
             entry["value"] = str(raw).lower()
             entry["choices"] = list(_THREAT_CHOICES)
+        elif spec.type == "choice":
+            entry["choices"] = list(spec.choices)
         else:
             entry["value"] = "" if raw is None else str(raw)
 

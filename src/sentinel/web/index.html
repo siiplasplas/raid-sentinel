@@ -246,33 +246,37 @@ figcaption{font-size:.8rem;color:var(--ink-3);margin-top:.5rem}
   <span class="brand">Raid Sentinel</span>
   <span id="server" class="dev-meta"></span>
   <span class="spacer"></span>
-  <span id="conn" class="pill wait">bağlanıyor</span>
-  <button id="sound" class="ghost" aria-pressed="false" title="Kritik olayda sesli uyarı">ses</button>
+  <button id="lang" class="ghost" title="Dil / Language">EN</button>
+  <span id="conn" class="pill wait" data-i18n="conn.connecting">bağlanıyor</span>
+  <button id="sound" class="ghost" aria-pressed="false"
+          data-i18n="sound.label" data-i18n-title="sound.title"
+          title="Kritik olayda sesli uyarı">ses</button>
 </header>
 
 <main>
   <div id="raids"></div>
 
   <nav class="tabs" role="tablist">
-    <button role="tab" aria-selected="true"  data-tab="events">Olaylar</button>
-    <button role="tab" aria-selected="false" data-tab="devices">Cihazlar</button>
-    <button role="tab" aria-selected="false" data-tab="base">Üs</button>
-    <button role="tab" aria-selected="false" data-tab="history">Arşiv</button>
-    <button role="tab" aria-selected="false" data-tab="team">Takım</button>
-    <button role="tab" aria-selected="false" data-tab="settings">Ayarlar</button>
-    <button role="tab" aria-selected="false" data-tab="setup">Kurulum<span id="setup-badge" class="badge" hidden></span></button>
-    <button role="tab" aria-selected="false" data-tab="system">Sistem</button>
+    <button role="tab" aria-selected="true"  data-tab="events" data-i18n="tab.events">Olaylar</button>
+    <button role="tab" aria-selected="false" data-tab="devices" data-i18n="tab.devices">Cihazlar</button>
+    <button role="tab" aria-selected="false" data-tab="base" data-i18n="tab.base">Üs</button>
+    <button role="tab" aria-selected="false" data-tab="history" data-i18n="tab.history">Arşiv</button>
+    <button role="tab" aria-selected="false" data-tab="team" data-i18n="tab.team">Takım</button>
+    <button role="tab" aria-selected="false" data-tab="settings" data-i18n="tab.settings">Ayarlar</button>
+    <button role="tab" aria-selected="false" data-tab="setup"><span data-i18n="tab.setup">Kurulum</span><span id="setup-badge" class="badge" hidden></span></button>
+    <button role="tab" aria-selected="false" data-tab="system" data-i18n="tab.system">Sistem</button>
   </nav>
 
   <section id="tab-events">
     <div class="filters">
       <select id="ev-sev">
-        <option value="debug">Tümü</option>
-        <option value="info">Bilgi ve üstü</option>
-        <option value="warn" selected>Uyarı ve üstü</option>
-        <option value="critical">Yalnızca kritik</option>
+        <option value="debug" data-i18n="sev.all">Tümü</option>
+        <option value="info" data-i18n="sev.info">Bilgi ve üstü</option>
+        <option value="warn" selected data-i18n="sev.warn">Uyarı ve üstü</option>
+        <option value="critical" data-i18n="sev.critical">Yalnızca kritik</option>
       </select>
-      <input class="search" id="ev-search" placeholder="Ara: bölge, cihaz, metin...">
+      <input class="search" id="ev-search" data-i18n-placeholder="ev.search"
+             placeholder="Ara: bölge, cihaz, metin...">
       <span class="count" id="ev-count"></span>
     </div>
     <div id="events" class="rows"></div>
@@ -290,30 +294,30 @@ figcaption{font-size:.8rem;color:var(--ink-3);margin-top:.5rem}
 
   <section id="tab-history" hidden>
     <div id="analytics"></div>
-    <div class="label">Geçmiş saldırılar</div>
+    <div class="label" data-i18n="hist.past">Geçmiş saldırılar</div>
     <div id="history" class="rows"></div>
   </section>
 
   <section id="tab-team" hidden>
     <div id="team-msg" class="msg" hidden></div>
     <div class="guide">
-      <h4>Tek bağlantı, çok kişi</h4>
-      <p>Rust+ eşleştirmesi tek bir hesaba ait ve öyle kalıyor — her üyenin
+      <h4 data-i18n="team.title">Tek bağlantı, çok kişi</h4>
+      <p data-i18n="team.intro">Rust+ eşleştirmesi tek bir hesaba ait ve öyle kalıyor — her üyenin
          ayrı eşleştirme yapmasına gerek yok. Sistem tek bağlantıdan besleniyor,
          çıkışı buradaki kişilere dağıtıyor.</p>
       <ul>
-        <li><strong>Discord</strong> — tek kanal herkese gider; kritik olayda
+        <li data-i18n-html="team.discord"><strong>Discord</strong> — tek kanal herkese gider; kritik olayda
             Discord ID'si girilmiş üyeler ayrıca etiketlenir</li>
-        <li><strong>ntfy</strong> — herkes aynı konuya abone olur, ek ayar yok</li>
-        <li><strong>Telefon</strong> — buradaki <strong>sırayla</strong> aranır,
+        <li data-i18n-html="team.ntfy"><strong>ntfy</strong> — herkes aynı konuya abone olur, ek ayar yok</li>
+        <li data-i18n-html="team.phone"><strong>Telefon</strong> — buradaki <strong>sırayla</strong> aranır,
             ilk cevap veren zinciri durdurur</li>
       </ul>
     </div>
     <div id="team-list"></div>
     <div class="actions">
-      <button class="secondary" id="team-add">+ Üye ekle</button>
-      <button class="primary" id="team-save">Kaydet</button>
-      <button class="secondary" id="team-reload">Geri al</button>
+      <button class="secondary" id="team-add" data-i18n="team.add">+ Üye ekle</button>
+      <button class="primary" id="team-save" data-i18n="btn.save">Kaydet</button>
+      <button class="secondary" id="team-reload" data-i18n="btn.revert">Geri al</button>
     </div>
   </section>
 
@@ -321,9 +325,9 @@ figcaption{font-size:.8rem;color:var(--ink-3);margin-top:.5rem}
     <div id="settings-msg" class="msg" hidden></div>
     <div id="settings"></div>
     <div class="actions">
-      <button class="primary" id="settings-save">Kaydet</button>
-      <button class="secondary" id="try-notify">Bildirimleri dene</button>
-      <button class="secondary" id="try-call">Telefonu dene</button>
+      <button class="primary" id="settings-save" data-i18n="btn.save">Kaydet</button>
+      <button class="secondary" id="try-notify" data-i18n="btn.tryNotify">Bildirimleri dene</button>
+      <button class="secondary" id="try-call" data-i18n="btn.tryCall">Telefonu dene</button>
     </div>
   </section>
 
@@ -342,6 +346,275 @@ figcaption{font-size:.8rem;color:var(--ink-3);margin-top:.5rem}
 "use strict";
 
 const $ = (id) => document.getElementById(id);
+// --- dil ------------------------------------------------------------------
+// Panel, bildirim ve seslendirme tek bir ayardan besleniyor (`language`).
+// Ikisinin ayri olmasi, ayni saldiriyi Discord'da Turkce panelde Ingilizce
+// okumak demek olurdu. Statik isaretleme data-i18n ile, uretilen HTML
+// S.<anahtar> ile ceviriliyor.
+
+const I18N = {
+  tr: {
+    "conn.connecting": "bağlanıyor", "conn.live": "canlı", "conn.stopped": "durdu",
+    "conn.down": "bağlantı yok",
+    "sound.label": "ses", "sound.title": "Kritik olayda sesli uyarı",
+    "tab.events": "Olaylar", "tab.devices": "Cihazlar", "tab.base": "Üs",
+    "tab.history": "Arşiv", "tab.team": "Takım", "tab.settings": "Ayarlar",
+    "tab.setup": "Kurulum", "tab.system": "Sistem",
+    "sev.all": "Tümü", "sev.info": "Bilgi ve üstü", "sev.warn": "Uyarı ve üstü",
+    "sev.critical": "Yalnızca kritik",
+    "ev.search": "Ara: bölge, cihaz, metin...",
+    "ev.none": "Henüz olay yok", "ev.noMatch": "Filtreye uyan olay yok",
+    "hist.past": "Geçmiş saldırılar", "hist.none": "Henüz kayıtlı saldırı yok",
+    "btn.save": "Kaydet", "btn.revert": "Geri al",
+    "btn.tryNotify": "Bildirimleri dene", "btn.tryCall": "Telefonu dene",
+
+    "calm.title": "Sakin", "calm.sub": "Aktif saldırı yok",
+    "calm.noServer": "sunucu eşleşmemiş",
+    "raid.toTC": "Tool cupboard'a", "raid.path": "Kalan yol",
+    "raid.ackShort": "Üstlendim · 30 dk", "raid.ack2h": "2 saat",
+    "raid.unack": "Susturmayı kaldır", "raid.hushed": "susturuldu",
+    "eta.none": "ETA hesaplanamıyor",
+    "eta.noneWhy": "üs tanımı, bölge eşleşmesi veya hız ölçümü eksik",
+    "eta.conf": "güven", "eta.left": "patlayıcı kaldı",
+    "conf.low": "düşük", "conf.medium": "orta", "conf.good": "iyi",
+
+    "dev.guideTitle": "Cihaz nasıl eklenir",
+    "dev.readFail": "Cihazlar okunamadı", "dev.none": "Henüz eşleştirilmiş cihaz yok.",
+    "dev.noneHint": "Program açık kaldığı sürece yeni eşleştirmeler anında burada belirir.",
+    "dev.notInBase": "üs tanımında yok", "dev.noSignal": "sinyal yok",
+    "dev.ago": "önce", "dev.zonePlaceholder": "Bölge adı (ör. Garaj)",
+    "dev.kindUnknown": "Sensör türü: belirsiz",
+    "dev.kindExplosion": "Sismik — patlama görür",
+    "dev.kindPresence": "HBHF — insan görür",
+    "dev.kindHint": "Bildirim metni buna göre yazılır",
+    "dev.save": "Kaydet", "dev.test": "Test tetikle", "dev.delete": "Sil",
+    "dev.updated": "Cihaz güncellendi.", "dev.testFail": "Test başarısız",
+    "dev.deleted": "Cihaz kaydı silindi.",
+    "dev.levelFromName": "Addan oku", "dev.tier": "Kademe",
+
+    "base.loading": "Yükleniyor...", "base.guideTitle": "Üs nasıl tanımlanır",
+    "base.legendTC": "tool cupboard", "base.legendRaid": "saldırı altında",
+    "base.legendCost": "Sayılar: o engeli açmanın C4 maliyeti",
+    "base.title": "Üs", "base.name": "Üs adı", "base.namePlaceholder": "Ana Üs",
+    "base.target": "Hedef bölge (tool cupboard)",
+    "base.targetFirst": "önce bağlantı ekle",
+    "base.zones": "Bölgeler (bağlantılardan türetilir)", "base.noZones": "henüz bölge yok",
+    "base.edges": "Bağlantılar", "base.addEdge": "+ Bağlantı ekle",
+    "base.zonePlaceholder": "Bölge", "base.delEdge": "Bağlantıyı sil",
+    "base.delObstacle": "Engeli sil", "base.addObstacle": "+ engel ekle",
+    "base.noObstacle": "Engel yok — bu geçiş bedava sayılır.",
+    "base.jsonApplied": "JSON uygulandı — kaydetmeyi unutma.",
+    "base.jsonBad": "JSON hatalı: ", "base.saved": "Üs tanımı kaydedildi ve devreye girdi.",
+    "base.needZones": "Her bağlantının iki bölgesi de dolu olmalı.",
+    "base.needTarget": "Hedef bölge seçilmeli.",
+    "base.example": "Henüz üs tanımı yok — bu bir örnek şablon. Düzenleyip kaydet.",
+    "base.zonesAway": "bölge uzakta", "base.triggers": "tetikleme",
+
+    "an.sessions": "30 günde saldırı", "an.falseRate": "yanlış alarm oranı",
+    "an.notSerious": "ciddi olmayan", "an.spend": "bu ay arama",
+    "an.perZone": "Bölge başına", "an.perDevice": "Cihaz başına tetikleme",
+    "an.attacks": "saldırı", "an.serious": "ciddi", "an.false": "yanlış alarm",
+    "an.ongoing": "sürüyor",
+
+    "team.title": "Tek bağlantı, çok kişi",
+    "team.intro": "Rust+ eşleştirmesi tek bir hesaba ait ve öyle kalıyor — her üyenin ayrı eşleştirme yapmasına gerek yok. Sistem tek bağlantıdan besleniyor, çıkışı buradaki kişilere dağıtıyor.",
+    "team.discord": "<strong>Discord</strong> — tek kanal herkese gider; kritik olayda Discord ID'si girilmiş üyeler ayrıca etiketlenir",
+    "team.ntfy": "<strong>ntfy</strong> — herkes aynı konuya abone olur, ek ayar yok",
+    "team.phone": "<strong>Telefon</strong> — buradaki <strong>sırayla</strong> aranır, ilk cevap veren zinciri durdurur",
+    "team.add": "+ Üye ekle", "team.none": "Henüz üye yok.",
+    "team.noneHint": "Telefon zinciri için en az bir kişi ekle.",
+    "team.order": "Arama sırası", "team.del": "Üyeyi sil",
+    "team.discordId": "Discord kullanıcı ID (opsiyonel) — kritik olayda etiketlenir",
+    "team.needName": "Her üyenin adı olmalı.",
+
+    "set.readFail": "Ayarlar okunamadı", "set.secretChange": "değiştirmek için yaz",
+    "set.isSet": "tanımlı", "set.notSet": "tanımsız",
+    "set.saved": "ayar güncellendi ve devreye girdi.", "set.noChange": "Değişiklik yok.",
+    "set.running": "çalışıyor...", "set.failed": "Başarısız",
+    "set.sent": "Gönderildi:",
+    "set.callPrompt": "Aranacak numara (boş bırakırsan listedeki ilk kişi):",
+    "set.tokenPrompt": "Panel erişim anahtarı:",
+
+    "sys.fcm": "FCM", "sys.healthy": "sağlıklı", "sys.unhealthy": "sorunlu",
+    "sys.socket": "Rust+ bağlantı", "sys.connected": "bağlı", "sys.disconnected": "kopuk",
+    "sys.reconnects": "Yeniden bağlanma", "sys.tracked": "İzlenen cihaz",
+    "sys.cap": "Arama tavanı", "sys.none": "yok",
+    "sys.chain": "Telefon zinciri", "sys.on": "açık", "sys.off": "kapalı",
+    "sys.quiet": "Sessiz saat", "sys.active": "aktif", "sys.inactive": "hayır",
+    "sys.uptime": "Çalışma süresi",
+
+    "ob.tiers": "Duvar / zemin kademesi", "ob.deployables": "Kapı ve yapılar",
+    "dev.simSent": "Sahte tetikleme gönderildi", "dev.simZone": "bölge",
+    "dev.simTier": "kademe",
+    "dev.simWhere": "Olaylar sekmesine ve bildirim kanallarına bak.",
+    "team.saved": "üye kaydedildi", "team.inChain": "kişi telefon zincirinde.",
+    "sys.silence": "FCM sessizlik", "sys.spent": "Bu ay harcanan",
+    "base.mapAria": "Üs haritası: bölgeler ve aralarındaki engeller, tool cupboard sağda.",
+    "chk.server": "Sunucu eşleştirildi", "chk.devices": "cihaz eşleştirildi",
+    "chk.devicesWhy": "Oyunda Smart Alarm'lara bakıp Pair de",
+    "chk.zones": "Her cihazın bölgesi var", "chk.zonesWhy": "Bölgesiz",
+    "chk.base": "Üs tanımı yüklü", "chk.baseTarget": "hedef",
+    "chk.baseWhy": "Üs sekmesinden tanımla — ETA bunsuz çalışmaz",
+    "chk.match": "Bölge adları üs tanımıyla eşleşiyor",
+    "chk.matchWhy": "Üs tanımında olmayan bölgeler — bu cihazlar için ETA hesaplanmaz",
+    "chk.channels": "Bildirim kanalı",
+    "chk.channelsWhy": "Ayarlar sekmesinden Discord veya ntfy tanımla",
+    "chk.chain": "Telefon zinciri açık",
+    "chk.chainWhy": "İsteğe bağlı — Twilio ve kişi listesi gerekiyor",
+    "u.sec": "sn", "u.min": "dk", "u.hour": "sa", "u.day": "g",
+    "del.confirm": "kaydı silinsin mi?",
+    "del.hint": "Oyundaki eşleştirme silinmez; cihaz hâlâ eşliyse bir sonraki sinyalde geri gelir."
+  },
+  en: {
+    "conn.connecting": "connecting", "conn.live": "live", "conn.stopped": "stopped",
+    "conn.down": "no connection",
+    "sound.label": "sound", "sound.title": "Audible alert on critical events",
+    "tab.events": "Events", "tab.devices": "Devices", "tab.base": "Base",
+    "tab.history": "Archive", "tab.team": "Team", "tab.settings": "Settings",
+    "tab.setup": "Setup", "tab.system": "System",
+    "sev.all": "All", "sev.info": "Info and above", "sev.warn": "Warning and above",
+    "sev.critical": "Critical only",
+    "ev.search": "Search: zone, device, text...",
+    "ev.none": "No events yet", "ev.noMatch": "No events match the filter",
+    "hist.past": "Past attacks", "hist.none": "No recorded attacks yet",
+    "btn.save": "Save", "btn.revert": "Revert",
+    "btn.tryNotify": "Test notifications", "btn.tryCall": "Test call",
+
+    "calm.title": "Quiet", "calm.sub": "No active attack",
+    "calm.noServer": "no server paired",
+    "raid.toTC": "To the tool cupboard", "raid.path": "Remaining path",
+    "raid.ackShort": "I've got this · 30 min", "raid.ack2h": "2 hours",
+    "raid.unack": "Lift the hush", "raid.hushed": "hushed",
+    "eta.none": "ETA unavailable",
+    "eta.noneWhy": "missing base definition, zone match or pace measurement",
+    "eta.conf": "confidence", "eta.left": "explosives left",
+    "conf.low": "low", "conf.medium": "medium", "conf.good": "good",
+
+    "dev.guideTitle": "How devices are added",
+    "dev.readFail": "Could not read devices", "dev.none": "No paired devices yet.",
+    "dev.noneHint": "While this program is running, new pairings appear here instantly.",
+    "dev.notInBase": "not in base definition", "dev.noSignal": "no signal",
+    "dev.ago": "ago", "dev.zonePlaceholder": "Zone name (e.g. Garage)",
+    "dev.kindUnknown": "Sensor type: unknown",
+    "dev.kindExplosion": "Seismic — sees explosions",
+    "dev.kindPresence": "HBHF — sees people",
+    "dev.kindHint": "Notification wording follows this",
+    "dev.save": "Save", "dev.test": "Test trigger", "dev.delete": "Delete",
+    "dev.updated": "Device updated.", "dev.testFail": "Test failed",
+    "dev.deleted": "Device record deleted.",
+    "dev.levelFromName": "From name", "dev.tier": "Tier",
+
+    "base.loading": "Loading...", "base.guideTitle": "How to define your base",
+    "base.legendTC": "tool cupboard", "base.legendRaid": "under attack",
+    "base.legendCost": "Numbers: C4 cost of breaking that obstacle",
+    "base.title": "Base", "base.name": "Base name", "base.namePlaceholder": "Main Base",
+    "base.target": "Target zone (tool cupboard)",
+    "base.targetFirst": "add a connection first",
+    "base.zones": "Zones (derived from connections)", "base.noZones": "no zones yet",
+    "base.edges": "Connections", "base.addEdge": "+ Add connection",
+    "base.zonePlaceholder": "Zone", "base.delEdge": "Delete connection",
+    "base.delObstacle": "Delete obstacle", "base.addObstacle": "+ add obstacle",
+    "base.noObstacle": "No obstacle — this transition counts as free.",
+    "base.jsonApplied": "JSON applied — remember to save.",
+    "base.jsonBad": "Invalid JSON: ", "base.saved": "Base definition saved and live.",
+    "base.needZones": "Both zones of every connection must be filled.",
+    "base.needTarget": "A target zone must be selected.",
+    "base.example": "No base definition yet — this is an example template. Edit and save.",
+    "base.zonesAway": "zones away", "base.triggers": "triggers",
+
+    "an.sessions": "attacks in 30 days", "an.falseRate": "false-alarm rate",
+    "an.notSerious": "not serious", "an.spend": "calls this month",
+    "an.perZone": "Per zone", "an.perDevice": "Triggers per device",
+    "an.attacks": "attacks", "an.serious": "serious", "an.false": "false alarms",
+    "an.ongoing": "ongoing",
+
+    "team.title": "One connection, many people",
+    "team.intro": "Rust+ pairing belongs to a single account and stays that way — no teammate needs to pair separately. The system feeds from one connection and fans the output out to the people listed here.",
+    "team.discord": "<strong>Discord</strong> — one channel reaches everyone; on critical events, members with a Discord ID are mentioned as well",
+    "team.ntfy": "<strong>ntfy</strong> — everyone subscribes to the same topic, nothing else to set up",
+    "team.phone": "<strong>Phone</strong> — called <strong>in this order</strong>; the first to answer stops the chain",
+    "team.add": "+ Add member", "team.none": "No members yet.",
+    "team.noneHint": "Add at least one person for the call chain.",
+    "team.order": "Call order", "team.del": "Delete member",
+    "team.discordId": "Discord user ID (optional) — mentioned on critical events",
+    "team.needName": "Every member needs a name.",
+
+    "set.readFail": "Could not read settings", "set.secretChange": "type to change",
+    "set.isSet": "set", "set.notSet": "not set",
+    "set.saved": "settings updated and live.", "set.noChange": "No changes.",
+    "set.running": "running...", "set.failed": "Failed",
+    "set.sent": "Sent:",
+    "set.callPrompt": "Number to call (leave empty for the first person on the list):",
+    "set.tokenPrompt": "Panel access token:",
+
+    "sys.fcm": "FCM", "sys.healthy": "healthy", "sys.unhealthy": "unhealthy",
+    "sys.socket": "Rust+ connection", "sys.connected": "connected",
+    "sys.disconnected": "down",
+    "sys.reconnects": "Reconnects", "sys.tracked": "Tracked devices",
+    "sys.cap": "Call budget", "sys.none": "none",
+    "sys.chain": "Call chain", "sys.on": "on", "sys.off": "off",
+    "sys.quiet": "Quiet hours", "sys.active": "active", "sys.inactive": "no",
+    "sys.uptime": "Uptime",
+
+    "ob.tiers": "Wall / floor tier", "ob.deployables": "Doors and structures",
+    "dev.simSent": "Synthetic trigger sent", "dev.simZone": "zone",
+    "dev.simTier": "tier",
+    "dev.simWhere": "Check the Events tab and your notification channels.",
+    "team.saved": "members saved", "team.inChain": "people in the call chain.",
+    "sys.silence": "FCM silence", "sys.spent": "Spent this month",
+    "base.mapAria": "Base map: zones and the obstacles between them, tool cupboard on the right.",
+    "chk.server": "Server paired", "chk.devices": "devices paired",
+    "chk.devicesWhy": "Look at your Smart Alarms in game and press Pair",
+    "chk.zones": "Every device has a zone", "chk.zonesWhy": "Without a zone",
+    "chk.base": "Base definition loaded", "chk.baseTarget": "target",
+    "chk.baseWhy": "Define it on the Base tab — ETA does not work without it",
+    "chk.match": "Zone names match the base definition",
+    "chk.matchWhy": "Zones missing from the base definition — no ETA for these devices",
+    "chk.channels": "Notification channel",
+    "chk.channelsWhy": "Configure Discord or ntfy on the Settings tab",
+    "chk.chain": "Call chain enabled",
+    "chk.chainWhy": "Optional — needs Twilio and a contact list",
+    "u.sec": "s", "u.min": "m", "u.hour": "h", "u.day": "d",
+    "del.confirm": "delete this record?",
+    "del.hint": "The in-game pairing is not removed; if the device is still paired it comes back on the next signal."
+  },
+};
+
+let lang = localStorage.getItem("sentinel-lang") || "tr";
+// S.<anahtar> ile erisim; eksik anahtar sessizce kaybolmasin diye anahtarin
+// kendisi donuyor.
+const S = new Proxy({}, {
+  get: (_, key) => (I18N[lang] && I18N[lang][key]) || I18N.tr[key] || String(key),
+});
+
+function applyStatic(root) {
+  (root || document).querySelectorAll("[data-i18n]").forEach((el) => {
+    el.textContent = S[el.dataset.i18n];
+  });
+  (root || document).querySelectorAll("[data-i18n-html]").forEach((el) => {
+    el.innerHTML = S[el.dataset.i18nHtml];
+  });
+  (root || document).querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+    el.placeholder = S[el.dataset.i18nPlaceholder];
+  });
+  (root || document).querySelectorAll("[data-i18n-title]").forEach((el) => {
+    el.title = S[el.dataset.i18nTitle];
+  });
+  document.documentElement.lang = lang;
+  const btn = $("lang");
+  if (btn) btn.textContent = lang === "tr" ? "EN" : "TR";
+}
+
+async function setLang(next, { persist = true } = {}) {
+  if (next !== "tr" && next !== "en") return;
+  lang = next;
+  localStorage.setItem("sentinel-lang", next);
+  applyStatic();
+  renderAll();
+  if (persist) await api("/api/settings", jsonBody("POST", { language: next }));
+}
+
+
 const MAX_EVENTS = 200;
 let state = null, events = [], soundOn = false;
 let baseModel = null, baseOptions = null, setupInfo = null;
@@ -357,10 +630,10 @@ const mmss = (sec) => {
 
 function ago(ts) {
   const d = Math.max(0, Date.now() / 1000 - ts);
-  if (d < 60) return `${Math.floor(d)} sn`;
-  if (d < 3600) return `${Math.floor(d / 60)} dk`;
-  if (d < 86400) return `${Math.floor(d / 3600)} sa`;
-  return `${Math.floor(d / 86400)} g`;
+  if (d < 60) return `${Math.floor(d)} ${S["u.sec"]}`;
+  if (d < 3600) return `${Math.floor(d / 60)} ${S["u.min"]}`;
+  if (d < 86400) return `${Math.floor(d / 3600)} ${S["u.hour"]}`;
+  return `${Math.floor(d / 86400)} ${S["u.day"]}`;
 }
 
 function esc(text) {
@@ -383,7 +656,7 @@ async function api(path, options) {
   }
   const res = await fetch(path, opts);
   if (res.status === 401) {
-    const given = prompt("Panel erişim anahtarı:", "");
+    const given = prompt(S["set.tokenPrompt"], "");
     if (given) {
       panelToken = given;
       localStorage.setItem("sentinel-token", given);
@@ -438,10 +711,10 @@ function renderRaids() {
   updateChrome();
 
   if (!raids.length) {
-    const server = state && state.server ? esc(state.server) : "sunucu eşleşmemiş";
+    const server = state && state.server ? esc(state.server) : S["calm.noServer"];
     box.innerHTML = `<div class="calm">
-      <div class="big">Sakin</div>
-      <div class="sub">Aktif saldırı yok · ${server}</div></div>`;
+      <div class="big">${S["calm.title"]}</div>
+      <div class="sub">${S["calm.sub"]} · ${server}</div></div>`;
     return;
   }
 
@@ -449,13 +722,15 @@ function renderRaids() {
     const threat = (r.threat || "NONE").toLowerCase();
     const eta = r.eta;
     const left = (r.suppressed_until || 0) - Date.now() / 1000;
-    const hushed = left > 0 ? `susturuldu · ${Math.ceil(left / 60)} dk` : "";
+    const hushed = left > 0
+      ? `${S["raid.hushed"]} · ${Math.ceil(left / 60)} ${S["u.min"]}` : "";
     const etaBlock = eta
       ? `<div class="eta" data-due="${eta.due_at}">${mmss(eta.due_at - Date.now() / 1000)}</div>
-         <div class="sub">${mmss(eta.low_seconds)}–${mmss(eta.high_seconds)} · güven: ${esc(eta.confidence)}
-         · ${eta.remaining_explosives} patlayıcı kaldı</div>`
-      : `<div class="eta unknown">ETA hesaplanamıyor</div>
-         <div class="sub">üs tanımı, bölge eşleşmesi veya hız ölçümü eksik</div>`;
+         <div class="sub">${mmss(eta.low_seconds)}–${mmss(eta.high_seconds)}
+         · ${S["eta.conf"]}: ${S["conf." + eta.confidence] || esc(eta.confidence)}
+         · ${eta.remaining_explosives} ${S["eta.left"]}</div>`
+      : `<div class="eta unknown">${S["eta.none"]}</div>
+         <div class="sub">${S["eta.noneWhy"]}</div>`;
 
     const ladder = eta && eta.path.length
       ? `<div class="ladder">${eta.path.map((s, i) => `
@@ -472,14 +747,14 @@ function renderRaids() {
         <span class="sub">${esc(r.summary)}</span>
       </div>
       <div class="raid-body">
-        <div class="cell"><div class="label">Tool cupboard'a</div>${etaBlock}
+        <div class="cell"><div class="label">${S["raid.toTC"]}</div>${etaBlock}
           <div class="reasons">${esc((r.threat_reasons || []).join("; "))}</div></div>
-        <div class="cell"><div class="label">Kalan yol</div>${ladder}</div>
+        <div class="cell"><div class="label">${S["raid.path"]}</div>${ladder}</div>
       </div>
       <div class="raid-actions">
-        <button class="tiny ack" data-zone="${esc(r.zone)}" data-min="30">Üstlendim · 30 dk</button>
-        <button class="tiny ack" data-zone="${esc(r.zone)}" data-min="120">2 saat</button>
-        ${hushed ? `<button class="tiny unack" data-zone="${esc(r.zone)}">Susturmayı kaldır</button>
+        <button class="tiny ack" data-zone="${esc(r.zone)}" data-min="30">${S["raid.ackShort"]}</button>
+        <button class="tiny ack" data-zone="${esc(r.zone)}" data-min="120">${S["raid.ack2h"]}</button>
+        ${hushed ? `<button class="tiny unack" data-zone="${esc(r.zone)}">${S["raid.unack"]}</button>
           <span class="hushed">${hushed}</span>` : ""}
       </div></article>`;
   }).join("");
@@ -532,7 +807,7 @@ function renderEvents() {
 
   if (!shown.length) {
     box.innerHTML = `<div class="empty">${events.length
-      ? "Filtreye uyan olay yok" : "Henüz olay yok"}</div>`;
+      ? S["ev.noMatch"] : S["ev.none"]}</div>`;
     return;
   }
   box.innerHTML = shown.map((e) => `
@@ -561,7 +836,8 @@ function pushEvent(evt) {
 
 // --- cihazlar ------------------------------------------------------------
 
-const PAIRING_STEPS = `
+const PAIRING_STEPS = {
+  tr: `
   <div class="guide">
     <h4>Cihaz nasıl eklenir</h4>
     <p>Cihazlar buradan eklenmez — <strong>oyun içinden eşleştirilir</strong>. Rust+
@@ -574,56 +850,71 @@ const PAIRING_STEPS = `
     </ol>
     <p class="hint">Adını <code>Garaj S3</code> gibi verirsen bölge ve sismik kademe
        otomatik okunur. Vermediysen aşağıdan elle atayabilirsin.</p>
-  </div>`;
+  </div>`,
+  en: `
+  <div class="guide">
+    <h4>How devices are added</h4>
+    <p>Devices are not added here — <strong>they are paired in game</strong>. Rust+
+       only exposes the devices you pressed "Pair" on.</p>
+    <ol>
+      <li>Leave this program running and join the server.</li>
+      <li><code>ESC → Rust+ → Pair with Server</code> (once per server).</li>
+      <li>Look at a Smart Alarm and press the <code>Pair</code> button.</li>
+      <li>The device shows up in this list within seconds.</li>
+    </ol>
+    <p class="hint">Name it something like <code>Garage S3</code> and the zone and
+       seismic tier are read automatically. Otherwise assign them by hand below.</p>
+  </div>`,
+};
 
 async function loadDevices() {
   const box = $("devices");
   const { ok, data } = await api("/api/entities");
-  if (!ok) { box.innerHTML = `<div class="empty">Cihazlar okunamadı</div>`; return; }
+  if (!ok) { box.innerHTML = `<div class="empty">${S["dev.readFail"]}</div>`; return; }
 
   const known = (setupInfo && setupInfo.known_zones) || [];
 
   if (!data.entities.length) {
-    box.innerHTML = PAIRING_STEPS +
-      `<div class="rows"><div class="empty">Henüz eşleştirilmiş cihaz yok.<br>
-       Program açık kaldığı sürece yeni eşleştirmeler anında burada belirir.</div></div>`;
+    box.innerHTML = (PAIRING_STEPS[lang] || PAIRING_STEPS.tr) +
+      `<div class="rows"><div class="empty">${S["dev.none"]}<br>
+       ${S["dev.noneHint"]}</div></div>`;
     return;
   }
 
-  box.innerHTML = PAIRING_STEPS + `<div class="rows">` + data.entities.map((d) => {
+  box.innerHTML = (PAIRING_STEPS[lang] || PAIRING_STEPS.tr) + `<div class="rows">` + data.entities.map((d) => {
     const levels = [1, 2, 3].map((n) =>
-      `<option value="${n}" ${d.seismic_level === n ? "selected" : ""}>Kademe ${n}</option>`
+      `<option value="${n}" ${d.seismic_level === n ? "selected" : ""}>${S["dev.tier"]} ${n}</option>`
     ).join("");
     const mismatch = d.zone && known.length && !known.includes(d.zone)
-      ? `<span class="warn-badge">üs tanımında yok</span>` : "";
+      ? `<span class="warn-badge">${S["dev.notInBase"]}</span>` : "";
     return `<div class="dev" data-id="${d.entity_id}">
       <div class="dev-top">
         <span class="sev ${d.last_value ? "critical" : "debug"}"></span>
         <span class="dev-name">${esc(d.name)}</span>
         ${mismatch}
         <span class="spacer"></span>
-        <span class="dev-meta">#${d.entity_id} · ${d.last_seen ? ago(d.last_seen) + " önce" : "sinyal yok"}</span>
+        <span class="dev-meta">#${d.entity_id} · ${d.last_seen ? ago(d.last_seen) + " " + S["dev.ago"] : S["dev.noSignal"]}</span>
       </div>
       <div class="dev-edit">
         <input class="zone" list="zone-list" value="${esc(d.zone || "")}"
-               placeholder="Bölge adı (ör. Garaj)">
+               placeholder="${S["dev.zonePlaceholder"]}">
         <select class="level">
-          <option value="auto" ${d.seismic_level == null ? "selected" : ""}>Addan oku</option>
+          <option value="auto" ${d.seismic_level == null ? "selected" : ""}>${S["dev.levelFromName"]}</option>
           ${levels}
         </select>
       </div>
       <div class="dev-edit">
         <select class="kind">
-          <option value="unknown" ${d.sensor_kind === "unknown" ? "selected" : ""}>Sensör türü: belirsiz</option>
-          <option value="explosion" ${d.sensor_kind === "explosion" ? "selected" : ""}>Sismik — patlama görür</option>
-          <option value="presence" ${d.sensor_kind === "presence" ? "selected" : ""}>HBHF — insan görür</option>
+          <option value="unknown" ${d.sensor_kind === "unknown" ? "selected" : ""}>${S["dev.kindUnknown"]}</option>
+          <option value="explosion" ${d.sensor_kind === "explosion" ? "selected" : ""}>${S["dev.kindExplosion"]}</option>
+          <option value="presence" ${d.sensor_kind === "presence" ? "selected" : ""}>${S["dev.kindPresence"]}</option>
         </select>
-        <span class="dev-meta">Bildirim metni buna göre yazılır</span>
+        <span class="dev-meta">${S["dev.kindHint"]}</span>
       </div>
       <div class="dev-btns">
-        <button class="tiny save">Kaydet</button>
-        <button class="tiny test">Test tetikle</button>
-        <button class="tiny danger remove">Sil</button>
+        <button class="tiny save">${S["dev.save"]}</button>
+        <button class="tiny test">${S["dev.test"]}</button>
+        <button class="tiny danger remove">${S["dev.delete"]}</button>
       </div></div>`;
   }).join("") + `</div>`;
 
@@ -640,25 +931,25 @@ async function saveDevice(card) {
                         seismic_level: card.querySelector(".level").value,
                         sensor_kind: card.querySelector(".kind").value }));
   if (!ok) { msg("devices-msg", "err", data.error || "Kaydedilemedi"); return; }
-  msg("devices-msg", "ok", "Cihaz güncellendi.");
+  msg("devices-msg", "ok", S["dev.updated"]);
   loadDevices(); loadSetup();
 }
 
 async function testDevice(card) {
   const { ok, data } = await api(`/api/entities/${card.dataset.id}/simulate`,
     jsonBody("POST", {}));
-  if (!ok) { msg("devices-msg", "err", data.error || "Test başarısız"); return; }
+  if (!ok) { msg("devices-msg", "err", data.error || S["dev.testFail"]); return; }
   msg("devices-msg", "ok",
-    `Sahte tetikleme gönderildi (bölge: ${data.zone || "yok"}, kademe: ${data.seismic_level ?? "yok"}). ` +
-    `Olaylar sekmesine ve bildirim kanallarına bak.`);
+    `${S["dev.simSent"]} (${S["dev.simZone"]}: ${data.zone || S["sys.none"]}, ` +
+    `${S["dev.simTier"]}: ${data.seismic_level ?? S["sys.none"]}). ${S["dev.simWhere"]}`);
 }
 
 async function removeDevice(card) {
   const name = card.querySelector(".dev-name").textContent;
-  if (!confirm(`"${name}" kaydı silinsin mi?\n\nOyundaki eşleştirme silinmez; cihaz hâlâ eşliyse bir sonraki sinyalde geri gelir.`)) return;
+  if (!confirm(`"${name}" ${S["del.confirm"]}\n\n${S["del.hint"]}`)) return;
   const { ok, data } = await api(`/api/entities/${card.dataset.id}`, { method: "DELETE" });
   if (!ok) { msg("devices-msg", "err", data.error || "Silinemedi"); return; }
-  msg("devices-msg", "ok", "Cihaz kaydı silindi.");
+  msg("devices-msg", "ok", S["dev.deleted"]);
   loadDevices(); loadSetup();
 }
 
@@ -693,11 +984,42 @@ function edgeCost(edge) {
 
 function optionsHtml(selected) {
   const opt = (o) => `<option value="${esc(o.value)}" ${o.value === selected ? "selected" : ""}>${esc(o.label)} (${o.cost_c4} C4)</option>`;
-  return `<optgroup label="Duvar / zemin kademesi">
+  return `<optgroup label="${S["ob.tiers"]}">
       ${baseOptions.tiers.map((o) => opt({ ...o, value: "tier:" + o.value })).join("")}</optgroup>
-    <optgroup label="Kapı ve yapılar">
+    <optgroup label="${S["ob.deployables"]}">
       ${baseOptions.deployables.map((o) => opt({ ...o, value: "type:" + o.value })).join("")}</optgroup>`;
 }
+
+const BASE_GUIDE = {
+  tr: `
+    <div class="guide">
+      <h4>Üs nasıl tanımlanır</h4>
+      <p>Üssünü <strong>bölgeler ve aralarındaki engeller</strong> olarak çiziyorsun.
+         Sistem raid'in hangi bölgede olduğunu sensörden öğreniyor, sonra buradaki
+         haritadan tool cupboard'a kaç patlayıcı kaldığını hesaplıyor.</p>
+      <ol>
+        <li><strong>Bağlantı ekle</strong> — hangi bölgeden hangi bölgeye geçiliyor.</li>
+        <li>O geçişteki <strong>engelleri</strong> ekle (duvar kademesi veya kapı).</li>
+        <li>Hedef bölgeyi seç — tool cupboard'ın olduğu yer.</li>
+      </ol>
+      <p class="hint">Bölge adları, cihaz adlarındaki bölgelerle birebir aynı olmalı.
+         Yazarken tanınan bölgeler önerilir.</p>
+    </div>`,
+  en: `
+    <div class="guide">
+      <h4>How to define your base</h4>
+      <p>You draw your base as <strong>zones and the obstacles between them</strong>.
+         The system learns which zone the raid is in from the sensor, then uses this
+         map to work out how many explosives are left before the tool cupboard.</p>
+      <ol>
+        <li><strong>Add a connection</strong> — which zone leads into which.</li>
+        <li>Add the <strong>obstacles</strong> on that transition (wall tier or door).</li>
+        <li>Pick the target zone — where the tool cupboard is.</li>
+      </ol>
+      <p class="hint">Zone names must match the zones in your device names exactly.
+         Known zones are suggested as you type.</p>
+    </div>`,
+};
 
 function baseMapSvg(model) {
   const zones = zonesOf(model);
@@ -775,7 +1097,8 @@ function baseMapSvg(model) {
     ].filter(Boolean).join(" ");
     const raid = raids.find((r) => r.zone === z);
     const meta = z === model.target ? "tool cupboard"
-      : (raid ? `${raid.threat} · ${raid.trigger_count} tetikleme` : `${dist[z]} bölge uzakta`);
+      : (raid ? `${raid.threat} · ${raid.trigger_count} ${S["base.triggers"]}`
+               : `${dist[z]} ${S["base.zonesAway"]}`);
     return `<rect class="node ${classes}" x="${p.x}" y="${p.y}" width="${W}" height="${H}" rx="3"/>
       <text class="zname" x="${p.x + 10}" y="${p.y + 17}">${esc(z)}</text>
       <text class="zmeta" x="${p.x + 10}" y="${p.y + 30}">${esc(meta)}</text>`;
@@ -783,71 +1106,59 @@ function baseMapSvg(model) {
 
   return `<div class="map">
     <svg viewBox="0 0 ${width} ${height}" role="img"
-      aria-label="Üs haritası: bölgeler ve aralarındaki engeller, tool cupboard sağda.">
+      aria-label="${S["base.mapAria"]}">
       ${links}${nodes}
     </svg>
     <div class="map-legend">
       <span><span class="sw" style="background:var(--sulfur)"></span><b>tool cupboard</b></span>
-      <span><span class="sw" style="background:var(--oxide)"></span><b>saldırı altında</b></span>
-      <span><b>Sayılar: o engeli açmanın C4 maliyeti</b></span>
+      <span><span class="sw" style="background:var(--oxide)"></span><b>${S["base.legendRaid"]}</b></span>
+      <span><b>${S["base.legendCost"]}</b></span>
     </div>
   </div>`;
 }
 
 function renderBaseEditor() {
   const box = $("base-editor");
-  if (!baseModel || !baseOptions) { box.innerHTML = `<div class="empty">Yükleniyor...</div>`; return; }
+  if (!baseModel || !baseOptions) { box.innerHTML = `<div class="empty">${S["base.loading"]}</div>`; return; }
 
   const zones = zonesOf(baseModel);
   refreshZoneList();
 
   box.innerHTML = baseMapSvg(baseModel) + `
-    <div class="guide">
-      <h4>Üs nasıl tanımlanır</h4>
-      <p>Üssünü <strong>bölgeler ve aralarındaki engeller</strong> olarak çiziyorsun.
-         Sistem raid'in hangi bölgede olduğunu sensörden öğreniyor, sonra buradaki
-         haritadan tool cupboard'a kaç patlayıcı kaldığını hesaplıyor.</p>
-      <ol>
-        <li><strong>Bağlantı ekle</strong> — hangi bölgeden hangi bölgeye geçiliyor.</li>
-        <li>O geçişteki <strong>engelleri</strong> ekle (duvar kademesi veya kapı).</li>
-        <li>Hedef bölgeyi seç — tool cupboard'ın olduğu yer.</li>
-      </ol>
-      <p class="hint">Bölge adları, cihaz adlarındaki bölgelerle birebir aynı olmalı.
-         Yazarken tanınan bölgeler önerilir.</p>
-    </div>
+    ${BASE_GUIDE[lang] || BASE_GUIDE.tr}
 
     <div class="group">
-      <h3>Üs</h3>
+      <h3>${S["base.title"]}</h3>
       <div class="field">
-        <label>Üs adı</label>
-        <input id="base-name" value="${esc(baseModel.name || "")}" placeholder="Ana Üs">
+        <label>${S["base.name"]}</label>
+        <input id="base-name" value="${esc(baseModel.name || "")}" placeholder="${S["base.namePlaceholder"]}">
       </div>
       <div class="field">
-        <label>Hedef bölge (tool cupboard)</label>
+        <label>${S["base.target"]}</label>
         <select id="base-target">
           ${zones.length
             ? zones.map((z) => `<option value="${esc(z)}" ${z === baseModel.target ? "selected" : ""}>${esc(z)}</option>`).join("")
-            : `<option value="">önce bağlantı ekle</option>`}
+            : `<option value="">${S["base.targetFirst"]}</option>`}
         </select>
       </div>
     </div>
 
-    <div class="label">Bölgeler (bağlantılardan türetilir)</div>
+    <div class="label">${S["base.zones"]}</div>
     <div class="zonechips">${zones.length
       ? zones.map((z) => `<span class="chip ${z === baseModel.target ? "target" : ""}">${esc(z)}</span>`).join("")
-      : `<span class="hint">henüz bölge yok</span>`}</div>
+      : `<span class="hint">${S["base.noZones"]}</span>`}</div>
 
-    <div class="label">Bağlantılar</div>
+    <div class="label">${S["base.edges"]}</div>
     <div id="conns">${baseModel.edges.map(connHtml).join("")}</div>
 
     <div class="actions">
-      <button class="secondary" id="add-conn">+ Bağlantı ekle</button>
-      <button class="primary" id="base-save">Kaydet</button>
-      <button class="secondary" id="base-reload">Geri al</button>
+      <button class="secondary" id="add-conn">${S["base.addEdge"]}</button>
+      <button class="primary" id="base-save">${S["btn.save"]}</button>
+      <button class="secondary" id="base-reload">${S["btn.revert"]}</button>
       <button class="secondary" id="base-json">JSON</button>
     </div>
     <div id="json-box" hidden>
-      <textarea id="base-text" spellcheck="false" aria-label="Üs tanımı JSON"></textarea>
+      <textarea id="base-text" spellcheck="false" aria-label="Base definition JSON"></textarea>
       <div class="actions"><button class="secondary" id="json-apply">JSON'u uygula</button></div>
     </div>`;
 
@@ -858,21 +1169,21 @@ function connHtml(edge, index) {
   const obs = (edge.obstacles || []);
   return `<div class="conn" data-i="${index}">
     <div class="conn-head">
-      <input class="cfrom" list="zone-list" value="${esc(edge.from || "")}" placeholder="Bölge">
+      <input class="cfrom" list="zone-list" value="${esc(edge.from || "")}" placeholder="${S["base.zonePlaceholder"]}">
       <span class="arrow">→</span>
-      <input class="cto" list="zone-list" value="${esc(edge.to || "")}" placeholder="Bölge">
+      <input class="cto" list="zone-list" value="${esc(edge.to || "")}" placeholder="${S["base.zonePlaceholder"]}">
       <span class="cost">${edgeCost(edge)} C4</span>
-      <button class="tiny danger del-conn" title="Bağlantıyı sil">✕</button>
+      <button class="tiny danger del-conn" title="${S["base.delEdge"]}">✕</button>
     </div>
     <div class="obs">
       ${obs.length ? obs.map((ob, j) => `
         <div class="ob" data-j="${j}">
           <select class="okind">${optionsHtml(obstacleValue(ob))}</select>
           <input class="ocount" type="number" min="1" max="99" value="${ob.count || 1}">
-          <button class="tiny danger del-ob" title="Engeli sil">✕</button>
+          <button class="tiny danger del-ob" title="${S["base.delObstacle"]}">✕</button>
         </div>`).join("")
-        : `<div class="ob-empty">Engel yok — bu geçiş bedava sayılır.</div>`}
-      <div><button class="tiny add-ob">+ engel ekle</button></div>
+        : `<div class="ob-empty">${S["base.noObstacle"]}</div>`}
+      <div><button class="tiny add-ob">${S["base.addObstacle"]}</button></div>
     </div></div>`;
 }
 
@@ -911,8 +1222,8 @@ function wireBaseEditor() {
     try {
       baseModel = JSON.parse($("base-text").value);
       renderBaseEditor();
-      msg("base-msg", "info", "JSON uygulandı — kaydetmeyi unutma.");
-    } catch (err) { msg("base-msg", "err", "JSON hatalı: " + err.message); }
+      msg("base-msg", "info", S["base.jsonApplied"]);
+    } catch (err) { msg("base-msg", "err", S["base.jsonBad"] + err.message); }
   };
 
   document.querySelectorAll("#conns .conn").forEach((el) => {
@@ -955,10 +1266,10 @@ async function loadBase() {
     baseModel = JSON.parse(raw.data.text);
     delete baseModel._comment;
   } catch (err) {
-    baseModel = { name: "Ana Üs", target: "", edges: [] };
+    baseModel = { name: S["base.namePlaceholder"], target: "", edges: [] };
   }
   msg("base-msg", raw.data.exists ? "" : "info",
-    raw.data.exists ? "" : "Henüz üs tanımı yok — bu bir örnek şablon. Düzenleyip kaydet.");
+    raw.data.exists ? "" : S["base.example"]);
   renderBaseEditor();
 }
 
@@ -966,12 +1277,12 @@ async function saveBase() {
   readEditor();
 
   const empty = baseModel.edges.find((e) => !e.from || !e.to);
-  if (empty) { msg("base-msg", "err", "Her bağlantının iki bölgesi de dolu olmalı."); return; }
-  if (!baseModel.target) { msg("base-msg", "err", "Hedef bölge seçilmeli."); return; }
+  if (empty) { msg("base-msg", "err", S["base.needZones"]); return; }
+  if (!baseModel.target) { msg("base-msg", "err", S["base.needTarget"]); return; }
 
   const { ok, data } = await api("/api/base", jsonBody("PUT", baseModel));
   if (!ok) { msg("base-msg", "err", data.error || "Kaydedilemedi"); return; }
-  msg("base-msg", "ok", "Üs tanımı kaydedildi ve devreye girdi.");
+  msg("base-msg", "ok", S["base.saved"]);
   loadSetup();
 }
 
@@ -983,7 +1294,7 @@ function fmtDate(ts) {
 }
 
 function fmtDur(sec) {
-  if (sec == null) return "sürüyor";
+  if (sec == null) return S["an.ongoing"];
   const m = Math.floor(sec / 60);
   return m >= 1 ? `${m} dk` : `${Math.round(sec)} sn`;
 }
@@ -995,17 +1306,18 @@ async function loadHistory() {
     const a = stats.data;
     const pct = Math.round((a.false_alarm_rate || 0) * 100);
     box.innerHTML = `<div class="stats">
-      <div class="stat"><div class="v">${a.total_sessions}</div><div class="k">30 günde saldırı</div></div>
-      <div class="stat"><div class="v ${pct > 50 ? "bad" : ""}">${pct}%</div><div class="k">yanlış alarm oranı</div></div>
+      <div class="stat"><div class="v">${a.total_sessions}</div><div class="k">${S["an.sessions"]}</div></div>
+      <div class="stat"><div class="v ${pct > 50 ? "bad" : ""}">${pct}%</div><div class="k">${S["an.falseRate"]}</div></div>
       <div class="stat"><div class="v">${a.false_alarms}</div><div class="k">ciddi olmayan</div></div>
       <div class="stat"><div class="v">${a.spend ? "$" + a.spend.spent_usd : "-"}</div><div class="k">bu ay arama</div></div>
-    </div>` + (a.zones.length ? `<div class="label" style="margin-top:1rem">Bölge başına</div>
+    </div>` + (a.zones.length ? `<div class="label" style="margin-top:1rem">${S["an.perZone"]}</div>
       <div class="rows">${a.zones.map((z) => `
         <div class="row"><span class="sev ${z.false_alarms > z.serious ? "warn" : "info"}"></span>
           <span class="txt"><div class="t">${esc(z.zone)}</div>
-          <div class="b">${z.sessions} saldırı · ${z.serious} ciddi · ${z.false_alarms} yanlış alarm</div></span>
+          <div class="b">${z.sessions} ${S["an.attacks"]} · ${z.serious} ${S["an.serious"]}
+          · ${z.false_alarms} ${S["an.false"]}</div></span>
           <span class="when">${z.last_ts ? ago(z.last_ts) : "-"}</span></div>`).join("")}</div>` : "")
-      + (a.devices.length ? `<div class="label" style="margin-top:1rem">Cihaz başına tetikleme</div>
+      + (a.devices.length ? `<div class="label" style="margin-top:1rem">${S["an.perDevice"]}</div>
       <div class="rows">${a.devices.map((d) => `
         <div class="row"><span class="sev debug"></span>
           <span class="txt"><div class="t">${esc(d.name)}</div>
@@ -1019,7 +1331,7 @@ async function loadHistory() {
   const list = $("history");
   const sessions = (hist.data && hist.data.sessions) || [];
   if (!sessions.length) {
-    list.innerHTML = `<div class="empty">Henüz kayıtlı saldırı yok</div>`;
+    list.innerHTML = `<div class="empty">${S["hist.none"]}</div>`;
     return;
   }
   list.innerHTML = sessions.map((s) => `
@@ -1047,12 +1359,12 @@ function memberHtml(m, index) {
         <input type="checkbox" class="m-active" ${m.active !== false ? "checked" : ""}
                style="width:auto;margin-right:.3rem"> aktif
       </label>
-      <button class="tiny danger m-del" title="Üyeyi sil">✕</button>
+      <button class="tiny danger m-del" title="${S["team.del"]}">✕</button>
     </div>
     <div class="obs">
       <div class="ob" style="grid-template-columns:1fr">
         <input class="m-discord" value="${esc(m.discord_id || "")}"
-               placeholder="Discord kullanıcı ID (opsiyonel) — kritik olayda etiketlenir">
+               placeholder="${S["team.discordId"]}">
       </div>
     </div>
   </div>`;
@@ -1063,10 +1375,10 @@ function renderTeam() {
   if (!teamModel) { box.innerHTML = ""; return; }
 
   if (!teamModel.members.length) {
-    box.innerHTML = `<div class="rows"><div class="empty">Henüz üye yok.<br>
-      Telefon zinciri için en az bir kişi ekle.</div></div>`;
+    box.innerHTML = `<div class="rows"><div class="empty">${S["team.none"]}<br>
+      ${S["team.noneHint"]}</div></div>`;
   } else {
-    box.innerHTML = `<div class="label">Arama sırası</div>` +
+    box.innerHTML = `<div class="label">${S["team.order"]}</div>` +
       teamModel.members.map(memberHtml).join("");
   }
 
@@ -1099,14 +1411,14 @@ async function saveTeam() {
   readTeam();
 
   const empty = teamModel.members.find((m) => !m.name);
-  if (empty) { msg("team-msg", "err", "Her üyenin adı olmalı."); return; }
+  if (empty) { msg("team-msg", "err", S["team.needName"]); return; }
 
   const { ok, data } = await api("/api/team", jsonBody("PUT", teamModel));
   if (!ok) { msg("team-msg", "err", data.error || "Kaydedilemedi"); return; }
 
   const callable = teamModel.members.filter((m) => m.active && m.phone).length;
   msg("team-msg", "ok",
-    `${data.count} üye kaydedildi · telefon zincirinde ${callable} kişi var.`);
+    `${data.count} ${S["team.saved"]} · ${callable} ${S["team.inChain"]}`);
   loadSetup();
 }
 
@@ -1115,7 +1427,7 @@ async function saveTeam() {
 async function loadSettings() {
   const box = $("settings");
   const { ok, data } = await api("/api/settings");
-  if (!ok) { box.innerHTML = `<div class="empty">Ayarlar okunamadı</div>`; return; }
+  if (!ok) { box.innerHTML = `<div class="empty">${S["set.readFail"]}</div>`; return; }
 
   const groups = {};
   data.fields.forEach((f) => { (groups[f.group] ||= []).push(f); });
@@ -1126,17 +1438,18 @@ async function loadSettings() {
 
 function fieldHtml(f) {
   let control;
-  if (f.type === "severity" || f.type === "threat") {
+  if (f.type === "severity" || f.type === "threat" || f.type === "choice") {
     control = `<select data-key="${f.key}">${f.choices.map((c) =>
       `<option value="${c}" ${c === f.value ? "selected" : ""}>${c}</option>`).join("")}</select>`;
   } else if (f.type === "secret") {
     control = `<input data-key="${f.key}" data-secret="1" type="password"
-      placeholder="${f.set ? "değiştirmek için yaz" : (f.placeholder || "")}">`;
+      placeholder="${f.set ? S["set.secretChange"] : (f.placeholder || "")}">`;
   } else {
     control = `<input data-key="${f.key}" value="${esc(f.value)}" placeholder="${esc(f.placeholder)}">`;
   }
   const status = f.type === "secret"
-    ? (f.set ? `<span class="isset">tanımlı ${esc(f.hint)}</span>` : `<span class="hint">tanımsız</span>`)
+    ? (f.set ? `<span class="isset">${S["set.isSet"]} ${esc(f.hint)}</span>`
+             : `<span class="hint">${S["set.notSet"]}</span>`)
     : "";
   return `<div class="field"><label>${esc(f.label)} ${status}</label>${control}
     ${f.help ? `<div class="hint">${esc(f.help)}</div>` : ""}</div>`;
@@ -1156,14 +1469,14 @@ async function saveSettings() {
 
   if (!ok) { msg("settings-msg", "err", data.error || "Kaydedilemedi"); return; }
   msg("settings-msg", "ok", data.changed.length
-    ? `${data.changed.length} ayar güncellendi ve devreye girdi.` : "Değişiklik yok.");
+    ? `${data.changed.length} ${S["set.saved"]}` : S["set.noChange"]);
   loadSettings(); loadSetup();
 }
 
 async function runAction(url, label, body) {
-  msg("settings-msg", "info", label + " çalışıyor...");
+  msg("settings-msg", "info", label + " " + S["set.running"]);
   const { data } = await api(url, jsonBody("POST", body || {}));
-  if (!data.ok) { msg("settings-msg", "err", data.error || "Başarısız"); return null; }
+  if (!data.ok) { msg("settings-msg", "err", data.error || S["set.failed"]); return null; }
   return data;
 }
 
@@ -1182,22 +1495,24 @@ function renderSetup() {
   if (!s) return;
 
   const checks = [
-    [!!s.paired_server, "Sunucu eşleştirildi",
+    [!!s.paired_server, S["chk.server"],
      s.paired_server || "Oyunda ESC → Rust+ → Pair with Server yap"],
-    [s.device_count > 0, `${s.device_count} cihaz eşleştirildi`,
-     s.device_count ? "" : "Oyunda Smart Alarm'lara bakıp Pair de"],
-    [s.devices_without_zone.length === 0, "Her cihazın bölgesi var",
-     s.devices_without_zone.length ? "Bölgesiz: " + s.devices_without_zone.join(", ") : ""],
-    [s.base_loaded, "Üs tanımı yüklü",
-     s.base_loaded ? `hedef: ${s.base_target}` : "Üs sekmesinden tanımla — ETA bunsuz çalışmaz"],
-    [s.unmatched_zones.length === 0, "Bölge adları üs tanımıyla eşleşiyor",
+    [s.device_count > 0, `${s.device_count} ${S["chk.devices"]}`,
+     s.device_count ? "" : S["chk.devicesWhy"]],
+    [s.devices_without_zone.length === 0, S["chk.zones"],
+     s.devices_without_zone.length
+       ? S["chk.zonesWhy"] + ": " + s.devices_without_zone.join(", ") : ""],
+    [s.base_loaded, S["chk.base"],
+     s.base_loaded ? `${S["chk.baseTarget"]}: ${s.base_target}` : S["chk.baseWhy"]],
+    [s.unmatched_zones.length === 0, S["chk.match"],
      s.unmatched_zones.length
-       ? `Üs tanımında olmayan bölgeler: ${s.unmatched_zones.join(", ")} — bu cihazlar için ETA hesaplanmaz`
+       ? `${S["chk.matchWhy"]}: ${s.unmatched_zones.join(", ")}`
        : ""],
-    [s.channels.length > 0, `Bildirim kanalı: ${s.channels.join(", ") || "yok"}`,
-     s.channels.length ? "" : "Ayarlar sekmesinden Discord veya ntfy tanımla"],
-    [s.escalation_enabled, "Telefon zinciri açık",
-     s.escalation_enabled ? "" : "İsteğe bağlı — Twilio ve kişi listesi gerekiyor"],
+    [s.channels.length > 0,
+     `${S["chk.channels"]}: ${s.channels.join(", ") || S["sys.none"]}`,
+     s.channels.length ? "" : S["chk.channelsWhy"]],
+    [s.escalation_enabled, S["chk.chain"],
+     s.escalation_enabled ? "" : S["chk.chainWhy"]],
   ];
 
   const failing = checks.filter(([ok]) => !ok).length;
@@ -1209,10 +1524,11 @@ function renderSetup() {
        <span><div>${esc(label)}</div>${why ? `<div class="why">${esc(why)}</div>` : ""}</span>
      </div>`).join("");
 
-  if (!$("setup-guide").innerHTML) $("setup-guide").innerHTML = GUIDE_HTML;
+  $("setup-guide").innerHTML = GUIDE_HTML[lang] || GUIDE_HTML.tr;
 }
 
-const GUIDE_HTML = `
+const GUIDE_HTML = {};
+GUIDE_HTML.tr = `
 <div class="guide">
   <h4>1 · Oyunda ne kurman gerekiyor</h4>
   <p>Sistemin patlayıcı <strong>tipini</strong> görebilmesi için sismik sensörün
@@ -1298,6 +1614,95 @@ const GUIDE_HTML = `
      varsa ve bölge adları cihaz adlarıyla eşleşiyorsa hesaplanır.</p>
 </div>`;
 
+
+GUIDE_HTML.en = `
+<div class="guide">
+  <h4>1 · What you build in game</h4>
+  <p>For the system to see the <strong>type</strong> of explosive, the seismic
+     sensor's output has to be split across three Smart Alarms. The sensor emits
+     different power per explosive class (1 = grenade, 2 = satchel, 3 = C4/rocket)
+     but Rust+ only exposes on/off. The circuit recovers that information.</p>
+  <table class="mats">
+    <tr><th>Part</th><th class="num">Qty</th><th>Cost</th></tr>
+    <tr><td>Seismic Sensor</td><td class="num">1</td><td>3 HQM + 1 Tech Trash</td></tr>
+    <tr><td>Electrical Branch</td><td class="num">2</td><td>150 metal frag</td></tr>
+    <tr><td>Smart Alarm</td><td class="num">3</td><td>9 HQM + 3 Tech Trash</td></tr>
+    <tr><td>Solar Panel + Small Battery</td><td class="num">1+1</td><td>10 HQM + 1 Tech Trash</td></tr>
+  </table>
+  <p class="hint">Total draw is 4 rW and the panel gives 20 rW. Everything is
+     Workbench 2. Blueprint research is a one-off ~105 scrap.</p>
+</div>
+
+<div class="guide">
+  <h4>2 · The circuit</h4>
+  <figure>
+    <svg viewBox="0 0 640 200" role="img" aria-label="The seismic sensor's output is split through two Electrical Branches set to 1 into three Smart Alarms; which alarms fire encodes the explosive tier.">
+      <defs><marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+      <rect x="4" y="76" width="108" height="46" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="58" y="96" text-anchor="middle" font-size="11" fill="currentColor">Seismic</text>
+      <text x="58" y="112" text-anchor="middle" font-size="9" fill="currentColor" opacity=".7">range 10-15 m</text>
+      <line x1="112" y1="99" x2="168" y2="99" stroke="currentColor" stroke-width="1.5" marker-end="url(#b)"/>
+      <text x="140" y="91" text-anchor="middle" font-size="9" fill="#E3B93E">P=1·2·3</text>
+      <rect x="168" y="80" width="74" height="38" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="205" y="103" text-anchor="middle" font-size="10" fill="currentColor">Branch 1</text>
+      <polyline points="205,80 205,30 360,30" fill="none" stroke="#E3B93E" stroke-width="1.5" marker-end="url(#b)"/>
+      <line x1="242" y1="99" x2="288" y2="99" stroke="currentColor" stroke-width="1.5" marker-end="url(#b)"/>
+      <text x="265" y="92" text-anchor="middle" font-size="9" fill="currentColor" opacity=".7">P−1</text>
+      <rect x="288" y="80" width="74" height="38" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="325" y="103" text-anchor="middle" font-size="10" fill="currentColor">Branch 1</text>
+      <polyline points="325,118 325,132 360,132" fill="none" stroke="#E3B93E" stroke-width="1.5" marker-end="url(#b)"/>
+      <polyline points="362,99 392,99 392,176 360,176" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#b)"/>
+      <rect x="360" y="12" width="180" height="36" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="450" y="35" text-anchor="middle" font-size="11" fill="currentColor">Alarm "Garage S1"</text>
+      <rect x="360" y="114" width="180" height="36" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="450" y="137" text-anchor="middle" font-size="11" fill="currentColor">Alarm "Garage S2"</text>
+      <rect x="360" y="158" width="180" height="36" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="450" y="181" text-anchor="middle" font-size="11" fill="currentColor">Alarm "Garage S3"</text>
+      <text x="556" y="35" font-size="9" fill="currentColor" opacity=".7">every blast</text>
+      <text x="556" y="137" font-size="9" fill="currentColor" opacity=".7">satchel+</text>
+      <text x="556" y="181" font-size="9" fill="currentColor" opacity=".7">C4 / rocket</text>
+    </svg>
+    <figcaption>Each Branch draws 1 from its output and passes the rest through.
+      S1 fires on every blast, S2 only at P≥2, S3 only at P=3.</figcaption>
+  </figure>
+  <p class="hint" style="margin-top:.8rem">Keep the sensor range narrow. Left at
+     30 m, a neighbour's raid 25 m away will wake you too.</p>
+</div>
+
+<div class="guide">
+  <h4>3 · Naming</h4>
+  <p>The name you give an alarm in game is the system's only configuration surface:</p>
+  <table class="mats">
+    <tr><th>Name in game</th><th>Zone</th><th>Tier</th></tr>
+    <tr><td>Garage S3</td><td>Garage</td><td>3 — C4/rocket</td></tr>
+    <tr><td>Airlock S2</td><td>Airlock</td><td>2 — satchel</td></tr>
+    <tr><td>Roof</td><td>Roof</td><td>none</td></tr>
+  </table>
+  <p class="hint">Space, <code>_</code> or <code>-</code> all work as separators.
+     Devices that do not follow the rule can be assigned a zone and tier by hand
+     on the Devices tab.</p>
+</div>
+
+<div class="guide">
+  <h4>4 · Pairing</h4>
+  <ol>
+    <li>Join the game with this program running.</li>
+    <li><code>ESC → Rust+ → Pair with Server</code></li>
+    <li>Look at each Smart Alarm and press <code>Pair</code>.</li>
+    <li>Watch them appear on the Devices tab.</li>
+  </ol>
+  <p class="hint">Pairing is invalidated by a wipe — you have to repeat these steps.
+     If the system notices the connection died, it warns you on the System tab.</p>
+</div>
+
+<div class="guide">
+  <h4>5 · Base definition</h4>
+  <p>On the Base tab, enter the zones and the obstacles between them. The ETA is
+     only computed when this definition exists and the zone names match the ones
+     in your device names.</p>
+</div>`;
+
 // --- sistem --------------------------------------------------------------
 
 function renderSystem() {
@@ -1307,16 +1712,21 @@ function renderSystem() {
         spend = state.spend || {}, esc_ = state.escalation || {};
 
   const stats = [
-    ["FCM", fcm.healthy ? "sağlıklı" : "sorunlu", fcm.healthy ? "good" : "bad"],
-    ["FCM sessizlik", fcm.silence_seconds != null ? `${Math.round(fcm.silence_seconds / 60)} dk` : "-", ""],
-    ["Rust+ bağlantı", sock.connected ? "bağlı" : "kopuk", sock.connected ? "good" : "bad"],
-    ["Yeniden bağlanma", sock.reconnects ?? "-", ""],
-    ["İzlenen cihaz", sock.tracked_entities ?? "-", ""],
-    ["Bu ay harcanan", spend.spent_usd != null ? `$${spend.spent_usd}` : "-", ""],
-    ["Arama tavanı", spend.cap_usd ? `$${spend.cap_usd}` : "yok", spend.cap_usd ? "" : "bad"],
-    ["Telefon zinciri", esc_.enabled ? "açık" : "kapalı", esc_.enabled ? "good" : ""],
-    ["Sessiz saat", esc_.quiet_hours_active ? "aktif" : "hayır", ""],
-    ["Çalışma süresi", state.uptime_seconds != null ? `${Math.round(state.uptime_seconds / 3600)} sa` : "-", ""],
+    [S["sys.fcm"], fcm.healthy ? S["sys.healthy"] : S["sys.unhealthy"],
+     fcm.healthy ? "good" : "bad"],
+    [S["sys.silence"], fcm.silence_seconds != null
+      ? `${Math.round(fcm.silence_seconds / 60)} ${S["u.min"]}` : "-", ""],
+    [S["sys.socket"], sock.connected ? S["sys.connected"] : S["sys.disconnected"],
+     sock.connected ? "good" : "bad"],
+    [S["sys.reconnects"], sock.reconnects ?? "-", ""],
+    [S["sys.tracked"], sock.tracked_entities ?? "-", ""],
+    [S["sys.spent"], spend.spent_usd != null ? `$${spend.spent_usd}` : "-", ""],
+    [S["sys.cap"], spend.cap_usd ? `$${spend.cap_usd}` : S["sys.none"],
+     spend.cap_usd ? "" : "bad"],
+    [S["sys.chain"], esc_.enabled ? S["sys.on"] : S["sys.off"], esc_.enabled ? "good" : ""],
+    [S["sys.quiet"], esc_.quiet_hours_active ? S["sys.active"] : S["sys.inactive"], ""],
+    [S["sys.uptime"], state.uptime_seconds != null
+      ? `${Math.round(state.uptime_seconds / 3600)} ${S["u.hour"]}` : "-", ""],
   ];
   box.innerHTML = stats.map(([k, v, cls]) =>
     `<div class="stat"><div class="v ${cls}">${esc(v)}</div><div class="k">${esc(k)}</div></div>`).join("");
@@ -1352,10 +1762,10 @@ $("team-add").onclick = () => {
 $("settings-save").onclick = saveSettings;
 $("try-notify").onclick = async () => {
   const data = await runAction("/api/actions/test-notify", "Bildirim denemesi");
-  if (data) msg("settings-msg", "ok", `Gönderildi: ${data.channels.join(", ")}`);
+  if (data) msg("settings-msg", "ok", `${S["set.sent"]} ${data.channels.join(", ")}`);
 };
 $("try-call").onclick = async () => {
-  const to = prompt("Aranacak numara (boş bırakırsan listedeki ilk kişi):", "");
+  const to = prompt(S["set.callPrompt"], "");
   if (to === null) return;
   const data = await runAction("/api/actions/test-call", "Arama denemesi", { to });
   if (data) msg("settings-msg", "ok",
@@ -1378,7 +1788,7 @@ function setConn(cls, text) {
 function connect() {
   const source = new EventSource("/api/stream");
   source.addEventListener("open", async () => {
-    setConn("up", "canlı");
+    setConn("up", S["conn.live"]);
     // Bagalanti koptugu surede olan olaylar SSE'den gelmez - kopma
     // sonrasi listeyi tazelemezsek o araliktaki alarmlar panelde hic
     // gorunmez. Bir alarm sisteminde bu kabul edilemez.
@@ -1394,13 +1804,39 @@ function connect() {
     renderRaids(); renderSystem();
     // Us sekmesi acikken harita saldiriyi canli gostersin
     if (!$("tab-base").hidden && baseModel) renderBaseEditor();
-    setConn("up", state.running ? "canlı" : "durdu");
+    setConn("up", state.running ? S["conn.live"] : S["conn.stopped"]);
   });
   source.addEventListener("event", (m) => pushEvent(JSON.parse(m.data)));
-  source.addEventListener("error", () => setConn("down", "bağlantı yok"));
+  source.addEventListener("error", () => setConn("down", S["conn.down"]));
 }
 
+// Dil degisince acik olan her sey yeniden cizilmeli - sekme degistirmeden
+// panelin tamami dil degistirsin diye.
+function renderAll() {
+  applyStatic();
+  renderRaids();
+  renderEvents();
+  if (state) renderSystem();
+  if (baseModel && baseOptions) renderBaseEditor();
+  loadDevices();
+  loadHistory();
+  loadTeam();
+  loadSettings();
+  loadSetup();
+}
+
+$("lang").addEventListener("click", () => setLang(lang === "tr" ? "en" : "tr"));
+
 (async function boot() {
+  // Dil sunucu ayarindan geliyor; panel yerel secimi yalnizca sunucu
+  // yanit vermezse kullaniliyor.
+  const st = await api("/api/state");
+  if (st.ok && st.data && st.data.language) {
+    lang = st.data.language;
+    localStorage.setItem("sentinel-lang", lang);
+  }
+  applyStatic();
+
   const { data } = await api("/api/events?limit=100");
   events = data.events || [];
   renderEvents();

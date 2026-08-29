@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
+from sentinel.i18n import t
 from sentinel.models import Event, EventKind, Severity
 from sentinel.spend import MonthlySpend
 
@@ -149,7 +150,7 @@ class EscalationEngine:
             self._suppressed["*"] = until
         else:
             self._suppressed[zone] = until
-        log.info("Telefon zinciri susturuldu (%s) %.0f dk", zone or "tüm bölgeler", minutes)
+        log.info("Telefon zinciri susturuldu (%s) %.0f dk", zone or t("esc.all_zones"), minutes)
         return until
 
     def suppressed_until(self, zone: str) -> float:
@@ -230,7 +231,7 @@ class EscalationEngine:
             Event(
                 kind=EventKind.ESCALATION_STARTED,
                 severity=Severity.CRITICAL,
-                title=f"{zone}: telefon zinciri başladı",
+                title=t("esc.started", zone=zone),
                 body=reason or message,
                 zone=zone,
                 raw={"contacts": [c.name for c in self._contacts]},
@@ -259,8 +260,8 @@ class EscalationEngine:
                     Event(
                         kind=EventKind.ESCALATION_ACKNOWLEDGED,
                         severity=Severity.WARN,
-                        title=f"{zone}: {contact.name} cevap verdi",
-                        body=f"{result.duration_seconds} sn konuşuldu. Zincir durduruldu.",
+                        title=t("esc.answered", zone=zone, name=contact.name),
+                        body=t("esc.answered_body", n=result.duration_seconds),
                         zone=zone,
                         raw={"contact": contact.name, "sid": result.sid},
                     )
@@ -273,8 +274,8 @@ class EscalationEngine:
             Event(
                 kind=EventKind.ESCALATION_EXHAUSTED,
                 severity=Severity.CRITICAL,
-                title=f"{zone}: kimse cevap vermedi",
-                body=f"{len(self._contacts)} kişi arandı, cevap alınamadı.",
+                title=t("esc.nobody", zone=zone),
+                body=t("esc.nobody_body", n=len(self._contacts)),
                 zone=zone,
             )
         )

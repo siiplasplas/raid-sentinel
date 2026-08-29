@@ -20,6 +20,7 @@ from sentinel.bus import EventBus
 from sentinel.config import Settings
 from sentinel.escalation import Contact, EscalationEngine, QuietHours
 from sentinel.eta import estimate as estimate_eta
+from sentinel.i18n import set_language, t
 from sentinel.models import Entity, EntityType, Event, EventKind, SensorKind, Severity
 from sentinel.naming import parse_entity_name
 from sentinel.notify import build_router_from_settings
@@ -46,6 +47,7 @@ class Sentinel:
         self._base_settings = settings or Settings()
         self.data_dir: Path = self._base_settings.db_path.parent
         self.settings = reapply(self._base_settings, self.data_dir)
+        set_language(self.settings.language)
 
         self.store = Store(self.settings.db_path)
         self.bus = EventBus()
@@ -188,6 +190,7 @@ class Sentinel:
     async def reload_settings(self) -> None:
         """Panelden ayar degistiginde yeniden kurar - surec yeniden baslamaz."""
         self.settings = reapply(self._base_settings, self.data_dir)
+        set_language(self.settings.language)
 
         old_router = self.router
         self.router = build_router_from_settings(self.settings)
@@ -520,7 +523,7 @@ class Sentinel:
             return
 
         message = (
-            f"Dikkat. {session.zone} bölgesi saldırı altında. {session.describe()}."
+            t("tts.alert", zone=session.zone, detail=session.describe())
         )
         if self.base is not None:
             eta = estimate_eta(session, self.base)
@@ -688,6 +691,7 @@ class Sentinel:
             "uptime_seconds": round(time.time() - self.started_at, 1)
             if self.started_at
             else None,
+            "language": self.settings.language,
             "server": self._server_id(),
             "fcm": self.fcm.health() if self.fcm else None,
             "socket": self.socket.health() if self.socket else None,

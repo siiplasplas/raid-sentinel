@@ -18,7 +18,7 @@ donanımın üstüne özellik kurmak doğru değil.
 
 ## Nasıl görünüyor
 
-[![Canlı görünüm](docs/screenshots/01-live.png)](docs/screenshots/01-live.png)
+[![Canlı görünüm](docs/screenshots/tr/01-live.png)](docs/screenshots/tr/01-live.png)
 
 **Canlı görünüm.** Geri sayım sabit bir katsayıdan değil, *o raidin* ölçülen
 hızından geliyor; altındaki aralık da gizlenmiş bir ortalama değil, belirsizliğin
@@ -28,14 +28,17 @@ diye işaretleniyor.
 
 |  |  |
 |:--|:--|
-| [<img src="docs/screenshots/02-base-map.png" alt="Üs haritası">](docs/screenshots/02-base-map.png) | [<img src="docs/screenshots/03-devices.png" alt="Cihazlar">](docs/screenshots/03-devices.png) |
+| [<img src="docs/screenshots/tr/02-base-map.png" alt="Üs haritası">](docs/screenshots/tr/02-base-map.png) | [<img src="docs/screenshots/tr/03-devices.png" alt="Cihazlar">](docs/screenshots/tr/03-devices.png) |
 | **Üs** — üssün bir çizge olarak. Kırmızı saldırı altındaki bölge, sarı tool cupboard'a giden en ucuz yol, sayılar o engeli açmanın patlayıcı maliyeti. | **Cihazlar** — cihazlar buradan eklenmez, oyun içinden eşleştirilir. Bu sekme bölge, kademe ve sensör türünü atar; sahte bir tetiklemeyi gerçek hattan geçirebilir. |
-| [<img src="docs/screenshots/04-archive.png" alt="Arşiv">](docs/screenshots/04-archive.png) | [<img src="docs/screenshots/05-team.png" alt="Takım">](docs/screenshots/05-team.png) |
+| [<img src="docs/screenshots/tr/04-archive.png" alt="Arşiv">](docs/screenshots/tr/04-archive.png) | [<img src="docs/screenshots/tr/05-team.png" alt="Takım">](docs/screenshots/tr/05-team.png) |
 | **Arşiv** — geçmiş oturumlar ve sisteme güvenmeye devam edip etmeyeceğini belirleyen sayı: bölge başına yanlış alarm oranı. | **Takım** — tek Rust+ bağlantısı, çok kişiye bildirim. Kimsenin bir şey kurması gerekmiyor. |
-| [<img src="docs/screenshots/06-system.png" alt="Sistem">](docs/screenshots/06-system.png) | [<img src="docs/screenshots/07-mobile.png" alt="Mobil">](docs/screenshots/07-mobile.png) |
+| [<img src="docs/screenshots/tr/06-system.png" alt="Sistem">](docs/screenshots/tr/06-system.png) | [<img src="docs/screenshots/tr/07-mobile.png" alt="Mobil">](docs/screenshots/tr/07-mobile.png) |
 | **Sistem** — push soketi ne kadardır sessiz, kaç kez yeniden bağlandı, ne harcandı. Sessizce ölen bir alarm sistemi hiç olmamasından kötüdür. | **Mobil** — aynı panel; zaten çoğunlukla telefondan bakacaksın. |
 
-Bu görüntüler `scripts/screenshots.py` ile üretiliyor, elle çekilmiyor.
+Panel, bildirimler ve telefon seslendirmesi **Türkçe veya İngilizce**
+konuşuyor; üstteki `TR`/`EN` düğmesi ya da `language` ayarı ikisini birden
+değiştiriyor. Görüntüler `scripts/screenshots.py` ile üretiliyor, elle
+çekilmiyor.
 
 ## Ne yapıyor
 
