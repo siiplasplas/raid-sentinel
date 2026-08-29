@@ -145,7 +145,7 @@ async def cmd_doctor(_args: argparse.Namespace) -> int:
         )
     else:
         # Telefon opsiyonel; eksikligi hata degil ama gorunur olmali.
-        print("\n  Not: telefon aramasi kapali (Twilio ayarlari veya kisi listesi eksik).")
+        print("\n  Not: telefon araması kapalı (Twilio ayarları veya kişi listesi eksik).")
 
     db_ok = settings.db_path.parent.exists() or settings.db_path.parent.parent.exists()
     checks.append((db_ok, f"Veri dizini yazilabilir: {settings.db_path.parent}"))
@@ -260,7 +260,7 @@ async def cmd_test_call(args: argparse.Namespace) -> int:
     )
 
     message = (
-        "Dikkat. Garaj bolgesi saldiri altinda. "
+        "Dikkat. Garaj bölgesi saldırı altında. "
         "Bu bir testtir, gercek bir raid degil."
     )
 

@@ -149,7 +149,7 @@ class EscalationEngine:
             self._suppressed["*"] = until
         else:
             self._suppressed[zone] = until
-        log.info("Telefon zinciri susturuldu (%s) %.0f dk", zone or "tum bolgeler", minutes)
+        log.info("Telefon zinciri susturuldu (%s) %.0f dk", zone or "tüm bölgeler", minutes)
         return until
 
     def suppressed_until(self, zone: str) -> float:
@@ -171,11 +171,11 @@ class EscalationEngine:
     async def escalate(self, zone: str, message: str, *, reason: str = "") -> None:
         """Zinciri baslatir. Cagiran taraf tehdit seviyesini zaten dogrulamis olmali."""
         if not self.enabled:
-            log.debug("Eskalasyon kapali (saglayici veya kisi listesi yok)")
+            log.debug("Eskalasyon kapalı (sağlayıcı veya kişi listesi yok)")
             return
 
         if zone in self._active:
-            log.info("Bu bolge icin zincir zaten calisiyor: %s", zone)
+            log.info("Bu bölge için zincir zaten çalışıyor: %s", zone)
             return
 
         if not await self._precheck(zone):
@@ -192,7 +192,7 @@ class EscalationEngine:
         until = self.suppressed_until(zone)
         if until:
             log.info(
-                "Bolge susturulmus (%s), %.0f dk kaldi", zone, (until - time.time()) / 60
+                "Bölge susturulmuş (%s), %.0f dk kaldı", zone, (until - time.time()) / 60
             )
             return False
 
@@ -200,7 +200,7 @@ class EscalationEngine:
         elapsed = time.time() - last
         if last and elapsed < self._cooldown:
             log.info(
-                "Bolge bekleme suresinde (%s): %.0f/%.0f sn",
+                "Bölge bekleme süresinde (%s): %.0f/%.0f sn",
                 zone,
                 elapsed,
                 self._cooldown,
@@ -230,7 +230,7 @@ class EscalationEngine:
             Event(
                 kind=EventKind.ESCALATION_STARTED,
                 severity=Severity.CRITICAL,
-                title=f"{zone}: telefon zinciri basladi",
+                title=f"{zone}: telefon zinciri başladı",
                 body=reason or message,
                 zone=zone,
                 raw={"contacts": [c.name for c in self._contacts]},
@@ -241,7 +241,7 @@ class EscalationEngine:
 
         for index, contact in enumerate(self._contacts, start=1):
             if not await self._spend.can_spend(self._estimate):
-                log.warning("Butce zincir ortasinda doldu, kalan kisiler aranmiyor")
+                log.warning("Bütçe zincir ortasında doldu, kalan kişiler aranmıyor")
                 break
 
             log.info("Araniyor (%d/%d): %s", index, len(self._contacts), contact.name)
@@ -260,7 +260,7 @@ class EscalationEngine:
                         kind=EventKind.ESCALATION_ACKNOWLEDGED,
                         severity=Severity.WARN,
                         title=f"{zone}: {contact.name} cevap verdi",
-                        body=f"{result.duration_seconds} sn konusuldu. Zincir durduruldu.",
+                        body=f"{result.duration_seconds} sn konuşuldu. Zincir durduruldu.",
                         zone=zone,
                         raw={"contact": contact.name, "sid": result.sid},
                     )
@@ -274,7 +274,7 @@ class EscalationEngine:
                 kind=EventKind.ESCALATION_EXHAUSTED,
                 severity=Severity.CRITICAL,
                 title=f"{zone}: kimse cevap vermedi",
-                body=f"{len(self._contacts)} kisi arandi, cevap alinamadi.",
+                body=f"{len(self._contacts)} kişi arandı, cevap alınamadı.",
                 zone=zone,
             )
         )

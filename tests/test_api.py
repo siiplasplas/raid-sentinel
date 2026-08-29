@@ -61,7 +61,11 @@ def test_panel_is_self_contained(client):
     """Panel dis kaynak cekmemeli - VPS internetsiz de calisabilmeli."""
     body = client.get("/").text
 
-    assert "http://" not in body.replace("http://127.0.0.1", "")
+    # XML ad alani (xmlns) bir tanimlayici, aglan cekilmiyor - muaf.
+    stripped = body.replace("http://127.0.0.1", "").replace(
+        "http://www.w3.org/", ""
+    )
+    assert "http://" not in stripped
     assert "cdn" not in body.lower()
 
 

@@ -95,7 +95,7 @@ def _raid_event():
     return Event(
         kind=EventKind.RAID_STARTED,
         severity=Severity.CRITICAL,
-        title="maintc: saldiri basladi",
+        title="maintc: saldırı başladı",
         zone="maintc",
         raw={
             "summary": "3 tetikleme",

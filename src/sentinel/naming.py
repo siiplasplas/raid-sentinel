@@ -10,7 +10,7 @@ Kural:
 
 Ornekler:
     "Garaj S3"      -> ("Garaj", 3)      C4/roket kademesi
-    "Airlock S1"    -> ("Airlock", 1)    el bombasi/beancan kademesi
+    "Airlock S1"    -> ("Airlock", 1)    el bombası/beancan kademesi
     "Cati HBHF"     -> ("Cati HBHF", None)
 """
 

@@ -21,12 +21,12 @@ def sample_raid_event() -> Event:
     return Event(
         kind=EventKind.RAID_STARTED,
         severity=Severity.CRITICAL,
-        title="Deneme: Garaj saldiri altinda",
+        title="Deneme: Garaj saldırı altında",
         body="Bu bir testtir. Gercek bir raid degil.",
         zone="Garaj",
         entity_name="Garaj S3",
         raw={
-            "summary": "3 tetikleme · en agir: C4/roket · 79 sn suredir",
+            "summary": "3 tetikleme · en agir: C4/roket · 79 sn süredir",
             "threat": "HIGH",
             "threat_score": 70,
             "threat_reasons": ["C4/roket kademesinde patlama", "3 tetikleme"],

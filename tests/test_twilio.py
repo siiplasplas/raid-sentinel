@@ -23,7 +23,7 @@ def caller():
 
 def test_twiml_repeats_message_twice(caller):
     """Telefonu yeni acan biri ilk cumleyi kacirir."""
-    twiml = caller.build_twiml("Garaj saldiri altinda")
+    twiml = caller.build_twiml("Garaj saldırı altında")
     assert twiml.count("<Say") == 2
 
 

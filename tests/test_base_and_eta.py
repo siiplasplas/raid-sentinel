@@ -222,4 +222,4 @@ def test_format_is_human_readable(graph):
 
     text = eta.format()
     assert "TC'ye tahmini" in text
-    assert "patlayici kaldi" in text
+    assert "patlayıcı kaldı" in text

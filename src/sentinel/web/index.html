@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title>Raid Sentinel</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23121513%27/%3E%3Cpath d=%27M16 5l9 3.5v7c0 6-3.9 9.9-9 11.5-5.1-1.6-9-5.5-9-11.5v-7z%27 fill=%27none%27 stroke=%27%23E3B93E%27 stroke-width=%272.5%27/%3E%3C/svg%3E">
 <style>
 :root{
   --ground:#121513; --panel:#1B1F1C; --panel-2:#262B27;
@@ -243,6 +244,7 @@ figcaption{font-size:.8rem;color:var(--ink-3);margin-top:.5rem}
 
 <header>
   <span class="brand">Raid Sentinel</span>
+  <span id="server" class="dev-meta"></span>
   <span class="spacer"></span>
   <span id="conn" class="pill wait">bağlanıyor</span>
   <button id="sound" class="ghost" aria-pressed="false" title="Kritik olayda sesli uyarı">ses</button>
@@ -413,9 +415,27 @@ function beep() {
 
 // --- aktif raidler -------------------------------------------------------
 
+function updateChrome() {
+  // Sekme basligi durumu tasisin - panel arka plandayken bile gorunur.
+  const raids = (state && state.active_raids) || [];
+  const worst = raids.find((r) => r.threat === "HIGH") || raids[0];
+  document.title = worst
+    ? `🔴 ${worst.zone} · Raid Sentinel`
+    : "Raid Sentinel";
+
+  const server = $("server");
+  if (state && state.server) {
+    const hours = state.uptime_seconds ? Math.round(state.uptime_seconds / 3600) : 0;
+    server.textContent = `${state.server}${hours ? " · " + hours + " sa" : ""}`;
+  } else {
+    server.textContent = "";
+  }
+}
+
 function renderRaids() {
   const box = $("raids");
   const raids = (state && state.active_raids) || [];
+  updateChrome();
 
   if (!raids.length) {
     const server = state && state.server ? esc(state.server) : "sunucu eşleşmemiş";
@@ -527,7 +547,12 @@ function pushEvent(evt) {
   events.unshift(evt);
   if (events.length > MAX_EVENTS) events.length = MAX_EVENTS;
   renderEvents();
-  if (evt.severity === "critical") beep();
+  if (evt.severity === "critical") {
+    // Tek bip kacirilabiliyor; kisa bir seri daha dikkat cekici.
+    beep();
+    setTimeout(beep, 700);
+    setTimeout(beep, 1400);
+  }
   // Eslestirme olaylari listeleri degistirir
   if (evt.kind === "entity_paired" || evt.kind === "server_paired") {
     loadDevices(); loadSetup();

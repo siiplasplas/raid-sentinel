@@ -54,7 +54,7 @@ def test_two_distinct_sensors_escalate_without_explosives():
     result = assess(session(triggers=2, entities={"Garaj", "Airlock"}))
 
     assert result.level is ThreatLevel.MEDIUM
-    assert "2 ayri sensor" in result.explanation
+    assert "2 ayrı sensör" in result.explanation
 
 
 def test_sustained_activity_escalates_over_time():
@@ -62,7 +62,7 @@ def test_sustained_activity_escalates_over_time():
     sustained = assess(session(triggers=3, age_seconds=120))
 
     assert sustained.score > quick.score
-    assert "dakikadir suruyor" in sustained.explanation
+    assert "dakikadır sürüyor" in sustained.explanation
 
 
 def test_teammate_nearby_never_suppresses_explosive_evidence():

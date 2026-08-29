@@ -257,12 +257,12 @@ def create_app(sentinel: Sentinel) -> FastAPI:
                 level = int(raw_level)
             except (TypeError, ValueError):
                 return JSONResponse(
-                    status_code=400, content={"error": "Sismik kademe sayi olmali"}
+                    status_code=400, content={"error": "Sismik kademe sayı olmalı"}
                 )
             if level not in (1, 2, 3):
                 return JSONResponse(
                     status_code=400,
-                    content={"error": "Sismik kademe 1, 2 veya 3 olmali"},
+                    content={"error": "Sismik kademe 1, 2 veya 3 olmalı"},
                 )
 
         raw_kind = str(body.get("sensor_kind") or "").strip() or None
@@ -426,7 +426,7 @@ def create_app(sentinel: Sentinel) -> FastAPI:
     async def acknowledge(body: dict[str, Any] = Body(default={})) -> dict[str, Any]:
         """Ben ilgileniyorum - telefon zincirini elle susturur."""
         if sentinel.escalation is None:
-            return {"ok": False, "error": "Telefon zinciri kurulu degil"}
+            return {"ok": False, "error": "Telefon zinciri kurulu değil"}
 
         zone = str(body.get("zone") or "").strip() or None
         try:
@@ -440,7 +440,7 @@ def create_app(sentinel: Sentinel) -> FastAPI:
             Event(
                 kind=EventKind.RAID_ACKNOWLEDGED,
                 severity=Severity.WARN,
-                title=f"{zone or 'Tum bolgeler'}: ustlenildi",
+                title=f"{zone or 'Tüm bölgeler'}: üstlenildi",
                 body=f"Telefon zinciri {minutes:.0f} dakika susturuldu.",
                 zone=zone,
             )
@@ -450,7 +450,7 @@ def create_app(sentinel: Sentinel) -> FastAPI:
     @app.post("/api/actions/unacknowledge")
     async def unacknowledge(body: dict[str, Any] = Body(default={})) -> dict[str, Any]:
         if sentinel.escalation is None:
-            return {"ok": False, "error": "Telefon zinciri kurulu degil"}
+            return {"ok": False, "error": "Telefon zinciri kurulu değil"}
         sentinel.escalation.clear_acknowledgement(
             str(body.get("zone") or "").strip() or None
         )
@@ -493,7 +493,7 @@ def create_app(sentinel: Sentinel) -> FastAPI:
         try:
             result = await caller.place_call(
                 target,
-                "Dikkat. Garaj bolgesi saldiri altinda. "
+                "Dikkat. Garaj bölgesi saldırı altında. "
                 "Bu bir testtir, gercek bir raid degil.",
             )
         finally:

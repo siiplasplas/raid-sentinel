@@ -458,7 +458,7 @@ class Sentinel:
                 settings.monthly_call_budget_usd,
             )
         else:
-            log.warning("Telefon aramasi kapali - Twilio ayarlari veya kisi listesi eksik")
+            log.warning("Telefon araması kapalı - Twilio ayarları veya kişi listesi eksik")
 
     def _detail_for(self, session: RaidSession) -> str:
         """Bildirim govdesine eklenecek ETA satiri.
@@ -520,7 +520,7 @@ class Sentinel:
             return
 
         message = (
-            f"Dikkat. {session.zone} bolgesi saldiri altinda. {session.describe()}."
+            f"Dikkat. {session.zone} bölgesi saldırı altında. {session.describe()}."
         )
         if self.base is not None:
             eta = estimate_eta(session, self.base)

@@ -18,7 +18,7 @@
 
   "edges": [
     {
-      "from": "Dis Cevre",
+      "from": "Dış Çevre",
       "to": "Kompound",
       "obstacles": [{ "type": "high_stone_wall", "count": 1 }]
     },

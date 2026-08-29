@@ -1,7 +1,7 @@
 """Raid toplayicisinin davranisi.
 
 En kritik ozellik: bir raid sirasinda gelen onlarca tetikleme tek bir
-"saldiri basladi" olayina inmeli. Aksi halde hem Discord okunmaz olur hem
+"saldırı başladı" olayina inmeli. Aksi halde hem Discord okunmaz olur hem
 de her tetikleme icin telefon calarsa fatura patlar.
 """
 
@@ -127,7 +127,7 @@ async def test_missing_zone_falls_back_without_crashing():
 
 @pytest.mark.parametrize(
     ("level", "expected_fragment"),
-    [(1, "el bombasi"), (2, "satchel"), (3, "C4")],
+    [(1, "el bombası"), (2, "satchel"), (3, "C4")],
 )
 async def test_describe_names_heaviest_explosive(level, expected_fragment):
     events = []
@@ -181,7 +181,7 @@ async def test_presence_sensor_is_not_reported_as_an_explosion():
 
     # Discord govdesi bu ozetten uretiliyor
     summary = events[0].raw["summary"]
-    assert "hareket algilandi" in summary
+    assert "hareket algılandı" in summary
     assert "C4" not in summary
     assert not any("C4" in r for r in events[0].raw["threat_reasons"]), (
         "Puanlama gerekcesi de patlama iddia etmemeli"
@@ -197,7 +197,7 @@ async def test_unverified_tier_is_marked_as_assumed():
     await agg.feed(zone="Garaj", seismic_level=3)
 
     progress = [e for e in events if e.kind is EventKind.RAID_PROGRESS][-1]
-    assert "kademe elle atanmis" in progress.body
+    assert "kademe elle atanmış" in progress.body
 
 
 async def test_confirmed_seismic_tier_is_stated_plainly():

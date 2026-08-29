@@ -46,7 +46,7 @@ async def test_events_round_trip_with_raw_payload(store):
         Event(
             kind=EventKind.RAID_STARTED,
             severity=Severity.CRITICAL,
-            title="Garaj saldiri altinda",
+            title="Garaj saldırı altında",
             zone="Garaj",
             raw={"trigger_count": 3, "levels": {"3": 3}},
         )

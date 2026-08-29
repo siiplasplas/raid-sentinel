@@ -42,7 +42,7 @@ async def build() -> Sentinel:
         (1001, "Kompound S3", "Kompound"),
         (1002, "Garaj S3", "Garaj"),
         (1003, "Airlock S2", "Airlock"),
-        (1004, "Cati HBHF", "Cati"),
+        (1004, "Çatı HBHF", "Çatı"),
     ]:
         await sentinel.store.upsert_entity(
             Entity(entity_id=eid, entity_type=EntityType.ALARM, name=name,
@@ -53,10 +53,10 @@ async def build() -> Sentinel:
     for kind, sev, title, body in [
         (EventKind.SENTINEL_STARTED, Severity.INFO, "Raid Sentinel calisiyor",
          "Sunucu: 10.0.0.1:28082 · Kanallar: discord, ntfy"),
-        (EventKind.ENTITY_PAIRED, Severity.INFO, "Cihaz eslestirildi: Garaj S3",
+        (EventKind.ENTITY_PAIRED, Severity.INFO, "Cihaz eşleştirildi: Garaj S3",
          "alarm · sismik kademe 3"),
-        (EventKind.RAID_ENDED, Severity.INFO, "Cati: saldiri durdu",
-         "2 tetikleme · 4 dk suredir"),
+        (EventKind.RAID_ENDED, Severity.INFO, "Çatı: saldırı durdu",
+         "2 tetikleme · 4 dk süredir"),
     ]:
         await sentinel._publish(Event(kind=kind, severity=sev, title=title, body=body))
 

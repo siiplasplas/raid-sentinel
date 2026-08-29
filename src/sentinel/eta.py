@@ -42,7 +42,7 @@ _MIN_GAP_SECONDS = 2.0
 
 
 class Confidence(StrEnum):
-    LOW = "dusuk"
+    LOW = "düşük"
     MEDIUM = "orta"
     GOOD = "iyi"
 
@@ -67,8 +67,8 @@ class EtaEstimate:
         return (
             f"TC'ye tahmini {_mmss(self.seconds)} "
             f"(±{_mmss(max(0.0, self.high_seconds - self.seconds))}, "
-            f"guven: {self.confidence}) · "
-            f"{self.remaining_explosives} patlayici kaldi"
+            f"güven: {self.confidence}) · "
+            f"{self.remaining_explosives} patlayıcı kaldı"
         )
 
 
@@ -119,7 +119,7 @@ def estimate(
 
     steps = graph.path_to_target(session.zone)
     if steps is None:
-        log.debug("Bolge us tanimda yok, ETA hesaplanmadi: %s", session.zone)
+        log.debug("Bölge üs tanımında yok, ETA hesaplanmadı: %s", session.zone)
         return None
     if not steps:
         return None  # zaten TC'de

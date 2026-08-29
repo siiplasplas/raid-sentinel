@@ -3,9 +3,7 @@
 Bu dosya, projeyi devralan bir sonraki oturum için. Kodda görünmeyen
 kararları, sahada öğrenilenleri ve doğrulanmamış varsayımları içerir.
 
-**Proje:** `C:\Users\Admin\Desktop\Projeler\raid-sentinel`
-**Kullanıcı:** Halit — Türkçe konuşuyor, Rust oynuyor, sistemi kendi
-makinesinde çalıştırıyor.
+Depo herkese açık; bu dosyada kişisel bilgi ya da sır tutma.
 **Son durum:** 27 Ağustos 2026 · 158 test · lint temiz · sahada çalışıyor
 
 ---
@@ -26,21 +24,21 @@ telefon faturasını patlatır.
 
 ## Sahada doğrulanmış durum
 
-Bunlar gerçek bir sunucuda (`[EU/TR] Suayip 3x`) canlı test edildi:
+Bunlar gerçek bir Rust sunucusunda canlı test edildi:
 
 | Parça | Durum |
 |---|---|
 | FCM kaydı + Google bağlantısı | ✅ push 2 sn'de geliyor |
 | Facepunch push kaydı | ✅ HTTP 200 |
-| Sunucu eşleştirme | ✅ `93.113.57.181:28082` |
+| Sunucu eşleştirme | ✅ |
 | WebSocket + entity aboneliği | ✅ bağlı, izliyor |
 | Alarm → olay → Discord | ✅ uçtan uca çalıştı |
 | ETA hesabı | ✅ üs tanımıyla çalışıyor |
 | Telefon araması | ❌ **hiç denenmedi** |
 
-**Kullanıcının kurulumu:** tek HBHF Sensor + tek Smart Alarm
-(`entity_id 22608211`, bölge `maintc`, kademe elle 3, tür `presence`).
-Üs tanımı: `maintc → TC`, 1 taş duvar. Kanal: Discord.
+**Test kurulumu:** tek HBHF Sensor + tek Smart Alarm, elle atanmış
+kademe 3, tür `presence`. Üs tanımı iki bölge, aralarında 1 taş duvar.
+Kanal: Discord.
 
 ---
 
@@ -222,14 +220,13 @@ Panel arayüzünü Rust+ olmadan görmek için: `python scripts/demo_panel.py`
 
 ---
 
-## Kullanıcıyla çalışma notu
+## Çalışma ilkesi
 
-Halit doğrudan ve hızlı geri bildirim veriyor; eleştirisi genellikle
-haklı çıkıyor. "Kamera işe yaramaz" dedi — haklıydı, CCTV craft bile
-edilemiyor. "PM sıktım, C4 diyor" dedi — sistemin en ciddi dürüstlük
-hatasıydı.
+Bir şey çalışmadığında **önce ölç, sonra tahmin et.** Sahada bulunan altı
+hatanın hepsi ölçümle çıktı: Expo'ya test push atmak, teslimat makbuzunu
+sorgulamak, izole bir dinleyici çalıştırmak, logdaki
+`too_many_subscribers`'ı görmek. Varsayımla gidilseydi hiçbiri
+bulunamazdı — hepsi "her şey çalışıyor görünüyor" ailesindendi.
 
-Bir şey çalışmadığında **önce ölç, sonra tahmin et.** Bugünkü altı hatanın
-hepsi ölçümle bulundu: Expo'ya test push atmak, makbuz sorgulamak, izole
-dinleyici çalıştırmak, logdaki `too_many_subscribers`'ı görmek. Varsayımla
-gidilseydi hiçbiri bulunamazdı.
+İkinci ilke: **sistem bilmediğini iddia etmesin.** Ölçülmemiş bir şeyi
+ölçülmüş gibi sunma; belirsizliği bant ya da etiketle göster.

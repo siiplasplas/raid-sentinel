@@ -47,7 +47,7 @@ DetailResolver = Callable[["RaidSession"], str]
 # kanallari bunu okuyup zengin gosterim uretiyor.
 ContextResolver = Callable[["RaidSession"], dict[str, object]]
 
-DEFAULT_ZONE = "Bilinmeyen bolge"
+DEFAULT_ZONE = "Bilinmeyen bölge"
 
 _SWEEP_INTERVAL = 15.0
 
@@ -120,25 +120,25 @@ class RaidSession:
 
         level = self.heaviest_level
         if self.only_presence:
-            # Hareket sensoru patlama gormez; kademe elle atanmis olsa bile
+            # Hareket sensoru patlama gormez; kademe elle atanmış olsa bile
             # "C4 patladi" demek yanlis olur.
-            parts.append("hareket algilandi")
+            parts.append("hareket algılandı")
         elif level is not None:
             names = {
-                SeismicLevel.LIGHT: "el bombasi/beancan",
-                SeismicLevel.MEDIUM: "satchel/patlayici mermi",
+                SeismicLevel.LIGHT: "el bombası/beancan",
+                SeismicLevel.MEDIUM: "satchel/patlayıcı mermi",
                 SeismicLevel.HEAVY: "C4/roket",
             }
             label = names[level]
             if str(SensorKind.EXPLOSION) not in self.kinds:
-                # Sismik oldugu dogrulanmadi - kademe kullanicinin beyani
-                label += " (kademe elle atanmis)"
-            parts.append(f"en agir: {label}")
+                # Sismik oldugu doğrulanmadı - kademe kullanicinin beyani
+                label += " (kademe elle atanmış)"
+            parts.append(f"en ağır: {label}")
 
         if self.duration >= 60:
-            parts.append(f"{self.duration / 60:.0f} dk suredir")
+            parts.append(f"{self.duration / 60:.0f} dk süredir")
         elif self.duration >= 1:
-            parts.append(f"{self.duration:.0f} sn suredir")
+            parts.append(f"{self.duration:.0f} sn süredir")
 
         sulfur = self.estimated_sulfur
         if sulfur:
@@ -289,7 +289,7 @@ class RaidAggregator:
             Event(
                 kind=EventKind.RAID_STARTED,
                 severity=self._severity(session, Severity.CRITICAL),
-                title=f"{session.zone}: saldiri basladi",
+                title=f"{session.zone}: saldırı başladı",
                 body=self._body(
                     session, ", ".join(sorted(session.entities)) or "Alarm tetiklendi"
                 ),
@@ -304,7 +304,7 @@ class RaidAggregator:
             Event(
                 kind=EventKind.RAID_PROGRESS,
                 severity=self._severity(session, Severity.WARN),
-                title=f"{session.zone}: saldiri suruyor",
+                title=f"{session.zone}: saldırı sürüyor",
                 body=self._body(session, session.describe()),
                 zone=session.zone,
                 raw={
@@ -322,7 +322,7 @@ class RaidAggregator:
             Event(
                 kind=EventKind.RAID_ENDED,
                 severity=Severity.INFO,
-                title=f"{session.zone}: saldiri durdu",
+                title=f"{session.zone}: saldırı durdu",
                 body=session.describe(),
                 zone=session.zone,
                 raw={

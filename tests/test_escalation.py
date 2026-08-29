@@ -81,7 +81,7 @@ async def test_chain_stops_at_first_answer(store):
     caller = FakeCaller([CallOutcome.NO_ANSWER, CallOutcome.ANSWERED])
     engine, events = build(store, caller)
 
-    await engine.escalate("Garaj", "Garaj saldiri altinda")
+    await engine.escalate("Garaj", "Garaj saldırı altında")
 
     assert len(caller.called) == 2, "Cevap alininca kalan kisi aranmamali"
     kinds = [e.kind for e in events]
